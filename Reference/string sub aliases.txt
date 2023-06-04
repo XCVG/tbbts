@@ -1,0 +1,126 @@
+
+
+BASE SUBSTITUTIONS (implemented in StringSubModule)
+
+<(>			<
+<)>			>
+<strong>	<b>
+</strong>	</b>
+<em>		<i>
+</em>		</i>
+<b>			<b>
+</b>		</b>
+<i>			</i>
+</i>		</i>
+<lf>		/n
+
+<color=*>	<color=*>
+</color>	</color>
+
+LITERAL STRING (implemented in StringSubModule)
+
+<p:"your string here">
+
+double quotes inside literal string must be escaped with backslash, all other characters pass through
+
+Why "p"? Because "s" and "l" are already taken. "p" is the next logical choice; p for Print
+
+An alternative supported in git versions only (will land in 4.0.0 preview 5):
+
+<p:`your string here`>
+
+backticks can be used instead of quotes, no characters need escaping but backticks cannot be used inside the string
+
+LOOKUP (implemented in StringSubModule)
+
+Looks up an item in one of the lists in the static substitution table and replaces it.
+
+<l:list:item>
+
+ENVIRONMENT (implemented in EnvironmentStringSubber)
+
+<%Data%>				Unity "Data" folder
+<%GameFolder%>			Game exe root folder
+<%PersistentData%>		CommonCore persistent data folder
+<%LocalData%>			CommonCore local data folder
+<%StreamingAssets%>		Unity "streaming assets" folder
+<%Screenshots%>			CommonCore screenshots folder
+<%AppData%>				Mono (roaming) AppData folder
+<%LocalAppData%>		Mono local AppData folder
+<%UserProfile%>			Mono user folder
+<%MyDocuments%>			Mono My Documents folder
+<%MyPictures%>			Mono My Pictures folder
+<%MyVideos%>			Mono My Videos folder
+
+<env:CurrentScene>			Name of the current scene
+<env:Platform>				Unity platform string
+<env:Identifier>			Unity application identifier
+<env:ProductName>			Unity application product name
+<env:CompanyName>			Unity application company name
+<env:Version>				Unity application version
+<env:VersionName>			CommonCore version name
+<env:UnityVersion>			Unity version string
+<env:CoreVersion>			CommonCore core version code
+<env:CoreVersionName>		CommonCore core version name
+<env:DeviceModel>			Unity SystemInfo device model
+<env:DeviceName>			Unity SystemInfo device name
+<env:DeviceType>			Unity SystemInfo device type
+<env:GraphicsDeviceName>	Unity SystemInfo graphics device name
+<env:GraphicsDeviceType>	Unity SystemInfo graphics device type (API)
+<env:OperatingSystem>		Unity SystemInfo operating system name/version
+<env:OperatingSystemFamily>	Unity SystemInfo operating system family
+<env:ProcessorType>			Unity SystemInfo processor name
+<env:MemorySize>			Unity SystemInfo system memory size
+
+All except "env" are thread-safe guaranteed. All "env" may or may not be thread-safe.
+
+RPG STATE (implemented in StateStringSubber)
+
+Some of these are a little half-baked.
+
+<av:actorvalue>		Called through to PlayerRpgState.GetAV
+<inv:item>			Called through to PlayerRpgState.Inventory.CountItem
+<invname:item>		Called through to InventoryModel.GetNiceName
+<cpf:flag>			Checks a campaign flag, returns "true" or "false"
+<cpv:variable>		Returns the contents of a campaign variable
+<cqs:quest>			Returns the state of a quest
+<cqname:quest>		Returns the name of a quest, if known (called through to QuestModel.GetNiceName)
+
+PLAYER STRINGS (implemented in StateStringSubber)
+
+<player:name>				The player's name
+<player:shortname>			The player's short or first name (thunks to player:name currently)
+<player:race>				The player's race. Will always return "human"
+<player:pronoun>			The player's pronoun ("he", "she", "it", "they")
+<player:pronounObj>			The player's possessive pronoun ("his", "hers", "its", "theirs")
+<player:pronounPosObj>		The player's object possessive pronoun ("his, "her", "its", "their")
+<player:pronounRef>			The player's reflexive pronoun ("himself", "herself", "itself", "themselves")
+<player:pronounInt>			The player's intensive pronoun ("himself", "herself", "itself", "themselves")
+
+Capitalization of the result will follow capitalization of the pattern:
+	First letter lower case:				all lower case
+	First letter upper case:				Capitalized first letter only
+	First and second letter upper case:		ALL CAPS
+Appending |keepcase will preserve case (experimental)
+
+The "player" selector must always be lowercase.
+
+The actual replacement strings for pronouns are stored in substitution lists:
+
+ALIAS_NOGENDER			"it" pronouns, used for Sex.Undefined
+ALIAS_FEMALE			"she" pronouns, used for Sex.Female
+ALIAS_MALE				"he" pronouns, used for Sex.Male
+ALIAS_NEUTRAL			"they" pronouns, used for Sex.Other
+
+SCRIPT SUBSTITUTIONS (implemented in ScriptStringSubber)
+
+Calls a script through the scripting system, inserts the result
+
+<s:script|arg0|arg1|...argn>
+
+There may be 0 to n args, separated by the | character. Putting a | character in a string arg will break.
+
+
+
+
+

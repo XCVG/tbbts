@@ -1,0 +1,382 @@
+IMAGES
+
+Face images are located at Assets/char in katana and /Dialogue/char in CommonCore
+Background images are located at Assets/bg in katana and /Dialogue/bg in CommonCore
+
+The draw area is assumed to be 1280x720. It is constrained in katana and scaled in CommonCore
+
+In CommonCore, 100 is assumed to be the default pixels per unit, and images are scaled according to this value
+
+Images in the "character" position are drawn centered in katana, but 100px (or 140px if GameParams.DialogueDrawPortraitHigh is set) above center in CommonCore
+Images in the "battler" position are drawn slightly offset in katana, but centered in CommonCore. They were never really supported in either.
+Images in the "fill" position are stretched to the full draw area.
+
+In CommonCore, some additional positions are supported:
+	contain - Image is scaled, maintaining aspect ratio, to fit within the draw area
+	cover - Image is scaled, maintaining aspect ratio, to fully cover the draw area
+	characterBottom - Image is centered horizontally, pinned to the bottom vertically, scaled only by PixelsPerUnit
+
+_______________________________________________________________________________
+
+TIMED ADVANCE
+
+The ImageFrame and TextFrame frame types can be set to move on to the next frame after a set period of time. Several properties are defined on the Frame to accomplish this:
+
+useTimer
+	Set this to true to enable timed advance
+
+allowSkip
+	Allows or disallows skipping the frame with the skip button. In CommonCore, this controls the existence of the skip button as well.
+
+hideSkip
+	Hides the skip button. Not implemented in CommonCore, where it is tied to allowSkip instead.
+
+timeToShow
+	How long to wait, in float seconds, until moving on to the next frame.
+
+_______________________________________________________________________________
+
+CONDITIONALS
+
+the "conditional" is an array containing "conditionNodes"
+each "conditionNode" contains a value for next and an array containing actual conditions that must be met
+
+[
+  { //condition node
+    "next": "badScene",
+    "conditions": [
+      {
+        "flag": "gotThing"
+      },
+      {
+        "item": "idcard",
+        "consume": false
+      },
+      {
+        "variable": "encCounter",
+        "greater": 5
+      },
+      {
+        "quest": "d5DestroyTower",
+        "started": false
+      }
+    ]
+  },
+  {
+    "next": "goodScene",
+    "conditions": []
+  }
+]
+
+conditionNodes are evaluated from last index to first index, and the first one that resolves true is used (implicit OR)
+all conditions form an implicit AND within a node
+
+AVAILABLE CONDITIONS:
+
+flag: <flag>
+noflag: <flag>
+(checks if a flag is set or unset, no additional options)
+
+item: <item>
+	consume: *boolean*
+(checks if the player has an item, uses it if specified [consume supported on Katana only])
+	greater: *number*
+	less: *number*
+	equal: *number*
+	greaterEqual: *number*
+	lessEqual: *number*
+(checks player's item count of this item against the tests, ONLY ONE AT A TIME IS SUPPORTED [supported on CommonCore only])
+
+variable: <variable>
+	greater: *number*
+	less: *number*
+	equal: *number*
+	greaterEqual: *number*
+	lessEqual: *number*
+(checks if a variable meets one of the tests, ONLY ONE AT A TIME IS SUPPORTED)
+
+affinity: <character> [Katana only]
+	(all supported by variable)
+(checks if affinity meets one of the tests, similar to variable)
+
+actorvalue: <path> [CommonCore only]
+	(all supported by variable)
+(checks if the actorvalue meets one of the tests, similar to variable, paths are exact variable names)
+
+quest: <quest>
+	(all supported by variable)
+	started: *boolean* (quest > 0)
+	finished: *boolean* (quest < 0)
+(checks if quest meets one of the test, similar to variable but supports shorthands)
+
+av: <actorvalue>
+	(all supported by variable)
+
+eval: *javascript*
+(simply eval() the given code, naturally Katana only)
+
+exec: <script name>
+	arg: *any* (passed to script)
+(special directive, looks up and executes a script through ASE engine, CommonCore only)
+
+playerFlag: <PlayerFlag>
+noPlayerFlag: <PlayerFlag>
+(checks if a player flag is set or unset, no additional options, CommonCore only)
+
+sessionFlag: <SessionFlag>
+noSessionFlag: <SessionFlag>
+(checks if a session flag is set or unset, no additional options, CommonCore only)
+
+_______________________________________________________________________________
+
+
+MICROSCRIPTS
+
+each "microscript" is an array of directives
+
+[
+  {
+    "flag": "d5Triggered",
+    "set": true
+  },
+  {
+    "quest": "d5Quest",
+    "set": 1
+  }
+]
+
+each directive has a target and an action
+one action per directive please
+
+AVAILABLE TARGETS
+	(supported actions)
+
+flag
+	set, toggle
+	
+item
+	give, take
+	
+variable
+	set, add
+	
+affinity
+	set, add
+
+quest
+	set, add, start, finish
+
+av or actorvalue (CommonCore only)
+	set, add
+
+eval (Katana only)
+	special directive, executes javascript passed as parameter
+
+exec (CommonCore only)
+	special directive, looks up and executes a script through ASE engine
+	
+playerFlag (CommonCore only)
+	set, toggle
+	
+AVAILABLE ACTIONS
+
+set: sets target to specified value
+toggle: flag only, inverts existing value
+add: adds specified value to target
+give: for inventory: value=quantity, target=item
+take: for inventory: value=quantity, target=item (value > 1 is undefined)
+start: for quests, sets target to value if and only if quest is not started
+finish: for quests, sets target to value if and only if quest is started
+
+non-numeric arguments are technically supported but not recommended
+	add is not defined and entirely at the mercy of javascript's type system
+	start and finish just simply won't work
+	this applies only to katana, not commoncore
+ 
+_______________________________________________________________________________
+
+
+MICROSCRIPT DELAY EXTENSIONS (CommonCore Only)
+
+a microscript node can be scheduled for later execution:
+
+[
+  {
+    "flag": "d5Triggered",
+    "set": true,
+	"delay": 60,
+	"delayType": "world",
+	"delayAbsolute": false
+  }
+]
+
+delay
+	delay in seconds
+
+delayType [optional] [default = game]
+	real, game, world
+	
+delayAbsolute [optional] [default = false]
+
+There are three ways to reckon time, and the exact meaning of delayAbsolute changes based on them:
+	REAL time: Time in the real world (technically system time). Never stops even if the game is closed. Absolute time is interpreted as seconds since January 1, 1970 (midnight UTC/GMT). Limited precision.
+	GAME time: Time passing inside the game, affected by pause and Unity timescale, but not RPG timescale. Absolute time is interpreted as seconds in game since the game state was created.
+	WORLD time: Time passing inside the world, ie affected by RPG timescale. Absolute time is interpreted as seconds in game since the game state was created.
+	
+Deferred events whose deadlines have passed will be executed as soon as possible. They do not expire.
+	
+_______________________________________________________________________________
+
+SKILL CHECKS (CommonCore Only)
+
+a choice node can optionally have a skill check attached
+
+{
+  "checkType": "soft", [optional, default = hard]
+  "stat": "Dexterity", [condition]
+  "greaterEqual": 5, [comparison]
+  "passNext": "this.passed",
+  "failNext": "meta.exit",
+  "appendCheckText": true [optional, default = false]
+}
+
+all will include a condition/target and a comparison
+
+AVAILABLE CONDITIONS:
+
+skill: <skill>
+
+stat: <stat>
+
+actorvalue: <actorvalue>
+
+AVAILABLE COMPARISONS
+
+greater: *number*
+less: *number*
+equal: *number*
+greaterEqual: *number*
+lessEqual: *number*
+
+Unlike conditionals, all comparisons are valid for all conditions
+
+OTHER OPTIONS
+
+checkType
+	soft - Meeting requirements is a 100% pass chance. Not meeting requirements is scaled linearly from 0%. Not defined for equal comparison operator.
+	hard - Must meet requirements exactly to pass. Supported fully for all comparison operators.
+	
+passNext - the frame to jump to if the check is passed
+failNext - the frame to jump to if the check is failed
+
+appendCheckText - If set, will prepend text that describes the skill check (ie [Dex 5])
+
+_______________________________________________________________________________
+
+CAMERA CONTROL (CommonCore Only)
+
+The direction of the camera can be set with cameraDirection on the Frame object. It can be inherited from the Scene as well.
+
+Default
+	Sets the camera back to where it was.
+
+FaceTarget:tid
+	Will face the target specified by tid at a fixed distance (defaults to 1.0)
+	If the : and tid are omitted, it will face the current target (which is by default the thing the dialogue was activated on)
+	
+CopyTransform:tid
+	Copies the transform of the object specified by the TID
+
+_______________________________________________________________________________
+
+ADDITIONAL OPTIONS (CommonCore Only)
+
+The options property of a Frame object defines some additional options for CommonCore only. It is inherited, so the scene can also have options which will be inherited by all of its Frames which can be overridden individually.
+
+panelHeight (enum)
+	default, full, half, variable, fixed
+	How high to make the panel. Currently default (follows what is set in GameParams), full, half, fixed are supported and variable is not.
+
+panelHeightPixels (float)
+	How high to make the panel, in pixels, when fixed height is selected
+
+hideNameText (boolean)
+	Whether to hide the name text. Default is false.
+	
+voiceOverride (string)
+	Override the voice clip name for this frame
+
+voiceVolume (float)
+	Override the voice clip volume for this frame
+
+hideObjects (list<string>)
+	Which objects in the scene to hide when this frame is displayed.
+	Lookup is by TID (name in scene).
+	It also accepts Player and Target which work the same as they do in camera control
+	Putting a # in front of the name will cause it to be interpreted literally, ignoring Player and Target logic.
+
+Several options are related to the conversation trace system added in CommonCore 3.0.0 Preview 3, which temporarily records the conversation path (meant to be used for a history window but that is not yet implemented).
+
+traceDefaultSpeaker (enum)
+	The "default" speaker used in conversation trace if nameText or traceSpeaker are not found, really more meant to be used in the scene rather than an individual frame. Can be None, PlayerLookup, PlayerName. PlayerName uses the player's CharacterModel DisplayName. PlayerLookup is not yet implemented.
+
+traceSpeaker (string)
+	The speaker name used in conversation trace for this frame. If not defined, nameText, then traceDefaultSpeaker will be used in that order.
+
+traceText (string)
+	The text used in conversation trace for this frame. If not defined, the normal text property of this frame will be used.
+
+traceIncludeChoices (string)
+	Whether to include choices in the conversation trace (defaults to false).
+
+traceIncludeNextText (bool)
+	Whether to include the nextText in the conversation trace (defaults to false).
+
+traceNextTextSpeaker (string)
+	The speaker name used for nextText in conversation trace. If not set, default speaker defined by traceDefaultSpeaker will be used.
+
+traceNextTextText (string)
+	The text used for nextText in conversation trace. If not defined, the normal text property of this frame will be used.
+_______________________________________________________________________________
+
+TRACE ON CHOICES (CommonCore Only)
+
+Trace options are also supported on choice nodes.
+
+traceSpeaker (string)
+	The speaker name used for this choice node. If not set, default speaker defined by traceDefaultSpeaker will be used.
+
+traceText (string)
+	The text used for this choice node. If not set, the text property of the choice node will be used.
+
+traceIgnore (bool)
+	If set, the choice node will be omitted from conversation trace even if traceIncludeChoices is set on the containing Frame.
+
+traceShow (bool)
+	If set, the choice node will be shown in the conversation trace even if traceIncludeChoices is false/unset on the containing Frame. If both traceIgnore and traceShow are set the behaviour is undefined.
+
+_______________________________________________________________________________
+
+SCRIPT CALLS (CommonCore Only)
+
+The scripts property of a Frame object defines some additional scripts for CommonCore only. It is inherited, so the scene can also have scripts which will be inherited by all of its Frames which can be overridden individually.
+
+Each of these is a string that refers to a script in the CommonCore scripting system.
+
+beforePresent
+	Runs before the frame is presented
+
+onPresent
+	Runs after the frame is presented
+	
+onChoice
+	Runs after a choice is chosen (including the "next" on TextFrame)
+	
+onUnpresent
+	Runs before a frame is cleared, before the next one is presented
+
+_______________________________________________________________________________
+
+EXTRADATA (CommonCore Only)
+
+An ExtraData property on the Frame allows adding extra data as a generic JSON object (internally it converts to IReadOnlyDictionary<string,object>). It is also available on the Scene object and is inherited, with individual properties on the frame overriding those on the base. Note that while ExtraData itself is immutable, objects contained within it may not be.

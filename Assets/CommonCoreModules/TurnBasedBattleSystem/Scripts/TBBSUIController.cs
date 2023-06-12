@@ -19,5 +19,10 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             //TODO open UI, let player select all the actions, then call the callback to return control back to scene controller
         }
+
+        public void ShowMessage(string message) //TODO more args?
+        {
+
+        }
     }
 }

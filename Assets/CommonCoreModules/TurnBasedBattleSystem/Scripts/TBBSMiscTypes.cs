@@ -1,3 +1,5 @@
+using CommonCore.RpgGame.Rpg;
+using CommonCore.RpgGame.State;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -21,5 +23,63 @@ namespace CommonCore.TurnBasedBattleSystem
         //call this to complete the action and return control back to the scene controller
         public Action CompleteCallback { get; set; }
     }
+
+    /// <summary>
+    /// Arguments passed to battler for animations
+    /// </summary>
+    public class BattlerAnimationArgs
+    {
+        public Vector3 Target { get; set; }
+
+    }
+
+    /// <summary>
+    /// Defines everything needed to set up a battle
+    /// </summary>
+    public class BattleDefinition
+    {
+        public const string DefaultBattleDefinitionKey = "TBBSBattleDefinition";
+
+        public string Stage { get; set; }
+
+        public List<BattleParticipant> Participants { get; private set; } = new List<BattleParticipant>();
+
+        public bool CommitCharacterModelsAtEnd { get; set; }
+        public bool GameOverIfBattleLost { get; set; }
+
+        public IList<MicroscriptNode> WinMicroscript { get; set; }
+        public IList<MicroscriptNode> LoseMicroscript { get; set; }
+
+    }
+
+    public class BattleParticipant
+    {
+        public CharacterModelSourceType CharacterModelSource { get; set; }
+        public string CharacterModelName { get; set; }
+
+        public ControlledByType ControlledBy { get; set; }
+
+        public string Battler { get; set; }
+        public Vector3 BattlerPosition { get; set; }
+        public Vector3 BattlerRotation { get; set; } //xyz oiler angles
+
+        public enum CharacterModelSourceType
+        {
+            InitializeNew, FromParty, FromPlayer
+        }
+
+        public enum ControlledByType
+        {
+            None, Player, AI
+        }
+    }
+
+
+    public class CharacterViewModel
+    {
+        public CharacterModel CharacterModel { get; set; }
+    }
+
+
 
 }

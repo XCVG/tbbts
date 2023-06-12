@@ -21,6 +21,9 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             base.Start();
 
+            //TODO get battle definition from metastate (or default?)
+            var battleDefinition = TBBSUtils.GetBattleDefinitionFromMetaState();
+
             //TODO kickoff battle start process
             //TODO will need to load battle setup/battle definition from somewhere
             //TODO eventually need to create stage from prefab here
@@ -60,6 +63,19 @@ namespace CommonCore.TurnBasedBattleSystem
 
         //TODO script hooks everywhere!
         
+    }
+
+    public enum BattlePhase
+    {
+        Intro, Decision, Action, Outro
+    }
+
+    public enum DecisionSubPhase
+    {
+        PreConditionCheck,
+        PlayerInput,
+        AI,
+        Reorder
     }
 }
 

@@ -9,6 +9,9 @@ namespace CommonCore.TurnBasedBattleSystem
     {
         protected BattleContext Context;
 
+        public virtual bool IsReorderable { get; }
+        public virtual int Priority { get; }
+
         public virtual void Start(BattleContext context)
         {
             Context = context;

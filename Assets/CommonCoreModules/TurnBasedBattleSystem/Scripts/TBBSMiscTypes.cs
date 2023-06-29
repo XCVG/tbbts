@@ -42,7 +42,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public string Stage { get; set; }
 
-        public List<BattleParticipant> Participants { get; private set; } = new List<BattleParticipant>();
+        public IDictionary<string, BattleParticipant> Participants { get; set; } = new Dictionary<string, BattleParticipant>();
 
         public bool CommitCharacterModelsAtEnd { get; set; }
         public bool GameOverIfBattleLost { get; set; }
@@ -62,6 +62,8 @@ namespace CommonCore.TurnBasedBattleSystem
         public string Battler { get; set; }
         public Vector3 BattlerPosition { get; set; }
         public Vector3 BattlerRotation { get; set; } //xyz oiler angles
+
+        public string DisplayName { get; set; }
 
         public enum CharacterModelSourceType
         {

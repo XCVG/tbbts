@@ -11,6 +11,10 @@ namespace CommonCore.TurnBasedBattleSystem
     /// </summary>
     public abstract class BattlerController : MonoBehaviour
     {
+        public virtual void Init(TBBSSceneController sceneController)
+        {
+
+        }
 
         public abstract void PlayAnimation(string animation, Action completeCallback, BattlerAnimationArgs args);
         //public abstract void StopAnimation();

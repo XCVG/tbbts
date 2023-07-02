@@ -17,7 +17,15 @@ namespace CommonCore.TurnBasedBattleSystem
             Context = context;
         }
 
-        public abstract void Update();
+        public virtual void Update()
+        {
+            //nop
+        }
+
+    }
+
+    public class FleeAction : BattleAction
+    {
 
     }
 

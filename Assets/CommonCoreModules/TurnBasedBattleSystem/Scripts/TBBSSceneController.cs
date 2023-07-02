@@ -1,3 +1,4 @@
+using CommonCore.LockPause;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -15,7 +16,9 @@ namespace CommonCore.TurnBasedBattleSystem
         public Dictionary<string, BattlerData> BattlerData { get; private set; } = new Dictionary<string, BattlerData>();
         public List<BattleAction> ActionQueue { get; private set; } = new List<BattleAction>();
 
-        private BattleDefinition BattleDefinition;
+        public int TurnCount { get; private set; }
+
+        public BattleDefinition BattleDefinition { get; private set; }
         private BattleAction CurrentAction;
 
         //TODO this will need to be a state machine. Possibly to handle "decision phase" vs "action phase" but certainly to handle Intro->Battle->Outro
@@ -49,17 +52,18 @@ namespace CommonCore.TurnBasedBattleSystem
             SpawnStage();
             SpawnBattlers();
             CurrentPhase = BattlePhase.Intro;
+
+            StartCoroutine(CoIntro());
         }
 
         public override void Update()
         {
             base.Update();
 
-            //TODO handle intro and outro stepping (?)
+            if (LockPauseModule.IsPaused())
+                return;
 
-            CurrentAction?.Update();
-
-            //TODO pass control to UI then AI if action queue is empty
+            UpdatePhase();
         }
 
         private BattleContext CreateContext()
@@ -69,7 +73,8 @@ namespace CommonCore.TurnBasedBattleSystem
                 SceneController = this,
                 UIController = UIController,
                 ActionQueue = ActionQueue,
-                CompleteCallback = SignalActionComplete
+                CompleteCallback = SignalActionComplete,
+                TurnCount = TurnCount
                 //TODO others?
             };
         }
@@ -77,14 +82,84 @@ namespace CommonCore.TurnBasedBattleSystem
         private void SignalActionComplete()
         {
             //TODO move to next action
+            Debug.LogWarning("SignalActionComplete");
         }
 
         private void SignalPlayerGetActionsComplete()
         {
             //TODO move to AI stage, possibly trigger some scripting, then begin next action
+            Debug.LogWarning("SignalPlayerGetActionsComplete");
+        }
+
+        private void EnterPhase(BattlePhase newPhase)
+        {
+            Debug.Log("Entering battle phase: " + newPhase);
+
+            //TODO enter next phase, doing initial setup or whatever
+            switch (newPhase)
+            {
+                case BattlePhase.Undefined:
+                    break;
+                case BattlePhase.Intro:
+                    break;
+                case BattlePhase.Decision:
+                    //TODO handle pre-condition-check
+                    CurrentDecisionSubPhase = DecisionSubPhase.PlayerInput;
+                    UIController.PromptPlayerAndGetActions(SignalPlayerGetActionsComplete);
+                    break;
+                case BattlePhase.Action:
+                    break;
+                case BattlePhase.Outro:
+                    break;
+                default:
+                    break;
+            }
+
+            CurrentPhase = newPhase;
+        }
+
+        private void UpdatePhase()
+        {
+            switch (CurrentPhase)
+            {
+                case BattlePhase.Undefined:
+                    break;
+                case BattlePhase.Intro:
+                    break;
+                case BattlePhase.Decision:                    
+                    break;
+                case BattlePhase.Action:
+                    CurrentAction?.Update();
+                    break;
+                case BattlePhase.Outro:
+                    break;
+                default:
+                    break;
+            }
         }
 
         //TODO script hooks everywhere!
+
+        //intro and outro handling (currently hardcoded)
+        private IEnumerator CoIntro()
+        {
+            yield return null;
+            bool advanced = false;
+            UIController.ShowMessage("Battle Start!", () =>
+            {
+                advanced = true;
+            });
+            while(!advanced)
+            {
+                yield return null;
+            }
+            EnterPhase(BattlePhase.Decision);
+        }
+
+        private IEnumerator CoOutro()
+        {
+            yield return null;
+        }
         
         //setup stuff below
 

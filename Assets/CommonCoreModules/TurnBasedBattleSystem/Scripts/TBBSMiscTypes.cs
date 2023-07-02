@@ -9,7 +9,7 @@ namespace CommonCore.TurnBasedBattleSystem
 {
 
     /// <summary>
-    /// Context of a battle passed into 
+    /// Context of a battle passed into Actions
     /// </summary>
     public class BattleContext
     {
@@ -19,10 +19,26 @@ namespace CommonCore.TurnBasedBattleSystem
 
         //I think these will all be accessible through SceneController, but prefer these accessors because convenience and API stability
         public IList<BattleAction> ActionQueue { get; set; }
+        public int TurnCount { get; set; }
 
         //call this to complete the action and return control back to the scene controller
         public Action CompleteCallback { get; set; }
+        
     }
+
+    /// <summary>
+    /// Context of a battle passed into PromptPlayerAndGetActions
+    /// </summary>
+    /*
+    public class GetActionsContext
+    {
+        public IList<BattleAction> ActionQueue { get; set; }
+        public int TurnCount { get; set; }
+        public BattleDefinition BattleDefinition { get; set; }
+        public Action CompleteCallback { get; set; }
+    }
+    */
+    //decided not to go with this, at least not yet
 
     /// <summary>
     /// Arguments passed to battler for animations
@@ -49,6 +65,11 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public IList<MicroscriptNode> WinMicroscript { get; set; }
         public IList<MicroscriptNode> LoseMicroscript { get; set; }
+
+        //will need to be set explicitly by caller for "return to last scene"
+        public string NextScene { get; set; }
+
+        //TODO specify escape allowance here
 
     }
 

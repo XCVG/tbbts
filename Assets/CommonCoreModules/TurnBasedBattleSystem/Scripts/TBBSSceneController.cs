@@ -1,4 +1,6 @@
 using CommonCore.LockPause;
+using CommonCore.RpgGame.Rpg;
+using CommonCore.State;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -189,14 +191,31 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             foreach(var participant in BattleDefinition.Participants)
             {
-                //TODO get characterModel and load stats
-
+                Debug.Log("Adding battle participant: " + participant.Key);
+                //get characterModel and load stats
+                CharacterModel characterModel;
+                switch (participant.Value.CharacterModelSource)
+                {
+                    case BattleParticipant.CharacterModelSourceType.InitializeNew:
+                        characterModel = TBBSUtils.LoadCharacterModel(participant.Value.CharacterModelName);
+                        break;
+                    case BattleParticipant.CharacterModelSourceType.FromParty:
+                        characterModel = GameState.Instance.Party[participant.Value.CharacterModelName];
+                        break;
+                    case BattleParticipant.CharacterModelSourceType.FromPlayer:
+                        characterModel = GameState.Instance.PlayerRpgState;
+                        break;
+                    default:
+                        characterModel = new CharacterModel(); //probably not safe
+                        break;
+                }
                 var bd = new ParticipantData()
                 {
+                    CharacterModel = characterModel,
                     BattleParticipant = participant.Value,
-                    DisplayName = participant.Value.DisplayName// ?? characterModel.DisplayName
-                    //TODO more later
+                    DisplayName = participant.Value.DisplayName ?? characterModel.DisplayName
                 };
+                bd.LoadValuesFromCharacterModel();
                 ParticipantData.Add(participant.Key, bd);
                 Debug.Log("Added battle participant: " + participant.Key);
             }

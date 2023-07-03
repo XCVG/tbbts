@@ -1,0 +1,54 @@
+{
+	"FormID": "",
+	"DisplayName": "TestCharacterModel",
+	"Gender": "Undefined",
+	"Health": 110.0,
+	"HealthFraction": 1.0,
+	"EnergyFraction": 1.0,
+	"ShieldsFraction": 0.0,
+	"Experience": 0,
+	"Level": 1,
+	"BaseStats": {
+		"MaxHealth": 0.0,
+		"DamageResistance": {
+			"Normal": 0.0,
+			"Impact": 0.0,
+			"Explosive": 0.0,
+			"Energy": 0.0,
+			"Poison": 0.0,
+			"Thermal": 0.0,
+			"Radiation": 0.0
+		},
+		"DamageThreshold": {
+			"Normal": 0.0,
+			"Impact": 0.0,
+			"Explosive": 0.0,
+			"Energy": 0.0,
+			"Poison": 0.0,
+			"Thermal": 0.0,
+			"Radiation": 0.0
+		},
+		"Stats": {
+			"Attack": 5,
+			"Defence": 5,
+			"SpecialAttack": 5,
+			"SpecialDefence": 5,
+			"Agility": 5,
+			"Luck": 5
+		},
+		"Skills": {
+			
+		}
+	},
+	"Conditions": [],
+	"Inventory": {
+		"Items": [			
+		]
+	},
+	"AmmoInMagazine": {
+		"LeftWeapon": 0,
+		"RightWeapon": 0
+	},
+	"EquippedIDs": {		
+	}
+}

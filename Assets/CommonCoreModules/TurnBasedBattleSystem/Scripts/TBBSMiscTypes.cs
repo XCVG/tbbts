@@ -85,6 +85,7 @@ namespace CommonCore.TurnBasedBattleSystem
         public Vector3 BattlerRotation { get; set; } //xyz oiler angles
 
         public string DisplayName { get; set; }
+        public bool ShowOverlay { get; set; } = true;
 
         public enum CharacterModelSourceType
         {
@@ -103,9 +104,13 @@ namespace CommonCore.TurnBasedBattleSystem
         public CharacterModel CharacterModel { get; set; }
     }
 
+    //effectively a view model
     public class ParticipantData
     {
+        public CharacterModel CharacterModel { get; set; }
         public BattleParticipant BattleParticipant { get; set; }
+
+        //it's all awkward as shit because I changed my mind on how this was supposed to work about 3 times
 
         public string DisplayName { get; set; }
 
@@ -114,24 +119,59 @@ namespace CommonCore.TurnBasedBattleSystem
 
         //"consumable" stats block
         public float Energy { get; set; }
+        public float MaxEnergy { get; set; }
         public float Health { get; set; }
+        public float MaxHealth { get; set; }
         public float Shields { get; set; }
+        public float MaxShields { get; set; }
         public float Magic { get; set; }
+        public float MaxMagic { get; set; }
 
         //TODO other stats, like agility/attack/etc from DerivedStats?
 
         public IReadOnlyList<string> Moves { get; set; } //should probably be private/protected set
+        public IReadOnlyDictionary<TBBSStatType, float> Stats { get; set; } //should probably be private/protected set?
 
-        public void LoadValuesFromCharacterModel(CharacterModel cm)
+        public void LoadValuesFromCharacterModel()
         {
-            //TODO
-            throw new NotImplementedException();
+            Energy = CharacterModel.Energy;
+            MaxEnergy = CharacterModel.DerivedStats.MaxEnergy;
+            Health = CharacterModel.Health;
+            MaxHealth = CharacterModel.DerivedStats.MaxHealth;
+            Shields = CharacterModel.Shields;
+            MaxShields = CharacterModel.DerivedStats.ShieldParams.MaxShields;
+            Magic = CharacterModel.Magic;
+            MaxMagic = CharacterModel.DerivedStats.MaxMagic;
+
+            Moves = CharacterModel.GetMoveset();
+
+            //copy TBBS stats
+            foreach(int i in Enum.GetValues(typeof(TBBSStatType)))
+            {
+                var stats = new Dictionary<TBBSStatType, float>();
+                if(CharacterModel.DerivedStats.Stats.TryGetValue(i, out int statVal))
+                {
+                    stats[(TBBSStatType)i] = statVal;
+                }
+                else
+                {
+                    stats[(TBBSStatType)i] = 1; //default is 1, because reasons
+                }
+                Stats = stats;
+            }
+
+            //TODO we may want to bring damage types into TBBS at some point
+            //TODO we will eventually have to handle inventory and conditions here
         }
 
-        public void SaveValuesToCharacterModel(CharacterModel cm)
+        public void SaveValuesToCharacterModel()
         {
-            //TODO
-            throw new NotImplementedException();
+            CharacterModel.Energy = Energy;
+            CharacterModel.Health = Health;
+            CharacterModel.Shields = Shields;
+            CharacterModel.Magic = Magic;
+
+            //TODO we will eventually have to handle inventory and conditions here
         }
 
     }

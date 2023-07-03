@@ -103,6 +103,37 @@ namespace CommonCore.TurnBasedBattleSystem
         public CharacterModel CharacterModel { get; set; }
     }
 
+    public class ParticipantData
+    {
+        public BattleParticipant BattleParticipant { get; set; }
 
+        public string DisplayName { get; set; }
+
+        //I think CharacterViewModel/BattlerData is redundant and we only need one or the other, but not 100% decided on that yet
+        //ie we could just put the stuff we would have put there in here, since we have to apply manually anyway
+
+        //"consumable" stats block
+        public float Energy { get; set; }
+        public float Health { get; set; }
+        public float Shields { get; set; }
+        public float Magic { get; set; }
+
+        //TODO other stats, like agility/attack/etc from DerivedStats?
+
+        public IReadOnlyList<string> Moves { get; set; } //should probably be private/protected set
+
+        public void LoadValuesFromCharacterModel(CharacterModel cm)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+
+        public void SaveValuesToCharacterModel(CharacterModel cm)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+
+    }
 
 }

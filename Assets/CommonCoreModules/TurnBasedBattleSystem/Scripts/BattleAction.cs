@@ -29,5 +29,11 @@ namespace CommonCore.TurnBasedBattleSystem
 
     }
 
+    public abstract class BaseAttackAction : BattleAction
+    {
+        public string AttackingParticipant { get; set; }
+        public string DefendingParticipant { get; set; }
+    }
+
 
 }

@@ -76,6 +76,9 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             //TODO this will be more complicated because it will be per-character
             Debug.LogWarning("PresentActionSelect2");
+
+            //will probably do a private method that draws the UI <for a participant> and basically foreach over them
+            //will also need to reference battler data blocks for battler name, stats, etc
         }
 
         public void ShowMessage(string message) => ShowMessage(message, null);
@@ -107,6 +110,8 @@ namespace CommonCore.TurnBasedBattleSystem
             MessageText.text = String.Empty;
             MessagePanel.SetActive(false);
         }
+
+        //TODO overlay show/hide/update methods
 
     }
 }

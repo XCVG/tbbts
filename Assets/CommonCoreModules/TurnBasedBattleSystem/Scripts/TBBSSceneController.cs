@@ -1,4 +1,5 @@
 using CommonCore.LockPause;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -13,13 +14,14 @@ namespace CommonCore.TurnBasedBattleSystem
         public GameObject Stage { get; private set; }
         public Dictionary<string, BattlerController> Battlers { get; private set; } = new Dictionary<string, BattlerController>();
 
-        public Dictionary<string, BattlerData> BattlerData { get; private set; } = new Dictionary<string, BattlerData>();
+        public Dictionary<string, ParticipantData> ParticipantData { get; private set; } = new Dictionary<string, ParticipantData>();
         public List<BattleAction> ActionQueue { get; private set; } = new List<BattleAction>();
 
         public int TurnCount { get; private set; }
 
         public BattleDefinition BattleDefinition { get; private set; }
         private BattleAction CurrentAction;
+        private bool CurrentActionStarted = false;
 
         //TODO this will need to be a state machine. Possibly to handle "decision phase" vs "action phase" but certainly to handle Intro->Battle->Outro
         private BattlePhase CurrentPhase;
@@ -83,6 +85,21 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             //TODO move to next action
             Debug.LogWarning("SignalActionComplete");
+
+            CurrentActionStarted = false;
+            CurrentAction = null;
+
+            if (ActionQueue.Count > 0)
+            {
+                CurrentAction = ActionQueue[0];
+                ActionQueue.RemoveAt(0);
+            }
+            else
+            {
+                //TODO go to next phase
+                throw new NotImplementedException();
+            }            
+
         }
 
         private void SignalPlayerGetActionsComplete()
@@ -108,6 +125,11 @@ namespace CommonCore.TurnBasedBattleSystem
                     UIController.PromptPlayerAndGetActions(SignalPlayerGetActionsComplete);
                     break;
                 case BattlePhase.Action:
+                    if(!CurrentActionStarted && CurrentAction != null)
+                    {
+                        CurrentAction.Start(CreateContext());
+                        CurrentActionStarted = true;
+                    }
                     break;
                 case BattlePhase.Outro:
                     break;
@@ -167,12 +189,15 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             foreach(var participant in BattleDefinition.Participants)
             {
-                var bd = new BattlerData()
+                //TODO get characterModel and load stats
+
+                var bd = new ParticipantData()
                 {
-                    BattleParticipant = participant.Value
+                    BattleParticipant = participant.Value,
+                    DisplayName = participant.Value.DisplayName// ?? characterModel.DisplayName
                     //TODO more later
                 };
-                BattlerData.Add(participant.Key, bd);
+                ParticipantData.Add(participant.Key, bd);
                 Debug.Log("Added battle participant: " + participant.Key);
             }
         }
@@ -191,7 +216,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
         private void SpawnBattlers()
         {
-            foreach(var bd in BattlerData)
+            foreach(var bd in ParticipantData)
             {
                 var battlerPrefab = CoreUtils.LoadResource<GameObject>("TurnBasedBattles/Battlers/" + bd.Value.BattleParticipant.Battler);
                 var battler = GameObject.Instantiate(battlerPrefab, bd.Value.BattleParticipant.BattlerPosition, Quaternion.Euler(bd.Value.BattleParticipant.BattlerRotation), CoreUtils.GetWorldRoot());
@@ -203,15 +228,7 @@ namespace CommonCore.TurnBasedBattleSystem
             }
         }
 
-    }
-
-    public class BattlerData
-    {
-        public BattleParticipant BattleParticipant { get; set; }
-
-        //I think CharacterViewModel/BattlerData is redundant and we only need one or the other, but not 100% decided on that yet
-        //ie we could just put the stuff we would have put there in here, since we have to apply manually anyway
-    }
+    }    
 
     public enum BattlePhase
     {

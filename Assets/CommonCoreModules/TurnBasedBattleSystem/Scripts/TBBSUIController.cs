@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -28,6 +29,15 @@ namespace CommonCore.TurnBasedBattleSystem
         private Button FightButton = null;
         [SerializeField]
         private Button FlightButton = null;
+
+        [Header("Action Select 2 Panel (Move Selection)"), SerializeField]
+        private GameObject ActionSelect2Panel = null;
+        [SerializeField]
+        private Text ParticipantNameText = null;
+        [SerializeField]
+        private Button AttackButton = null;
+        [SerializeField]
+        private Button GuardButton = null;
 
         private Action ActionSelectDoneCallback;
 
@@ -77,8 +87,54 @@ namespace CommonCore.TurnBasedBattleSystem
             //TODO this will be more complicated because it will be per-character
             Debug.LogWarning("PresentActionSelect2");
 
-            //will probably do a private method that draws the UI <for a participant> and basically foreach over them
-            //will also need to reference battler data blocks for battler name, stats, etc
+            ActionSelect2Panel.SetActive(true);
+
+            //do we need to do this every time? not really
+            var playerControlledParticipants = SceneController
+                .ParticipantData
+                .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player)
+                .Where(kvp => kvp.Value.Health > 0) //temporary
+                .ToList();
+            //TODO need to filter by more condition or flag for player-controlled participants that can't do anything this turn because they're paralyzed or dead or whatever
+            int participantIndex = 0;
+            presentActionSelectForParticipant();
+
+            void presentActionSelectForParticipant()
+            {
+                var participant = playerControlledParticipants[participantIndex];
+                ParticipantNameText.text = participant.Value.DisplayName;
+
+                AttackButton.onClick.RemoveAllListeners();
+                AttackButton.onClick.AddListener(() =>
+                {
+                    //TODO this will be complicated because you need to select a target
+                    //probably need to handle agility better
+                    //TODO
+                    throw new NotImplementedException();
+                    gotoNext();
+                });
+
+                GuardButton.onClick.RemoveAllListeners();
+                GuardButton.onClick.AddListener(() =>
+                {
+                    SceneController.ActionQueue.Add(new GuardAction()); //don't need to worry about agility or anything because Guard actions will be reordered ahead of attacks
+                    gotoNext();
+                });
+            }
+
+            void gotoNext()
+            {
+                participantIndex++;
+                if(participantIndex < playerControlledParticipants.Count)
+                {
+                    presentActionSelectForParticipant();
+                }
+                else
+                {
+                    ActionSelect2Panel.SetActive(false);
+                    ActionSelectDoneCallback();
+                }
+            }
         }
 
         public void ShowMessage(string message) => ShowMessage(message, null);

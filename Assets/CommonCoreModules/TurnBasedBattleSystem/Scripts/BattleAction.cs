@@ -35,5 +35,10 @@ namespace CommonCore.TurnBasedBattleSystem
         public string DefendingParticipant { get; set; }
     }
 
+    public class GuardAction : BattleAction
+    {
+        public string GuardingParticipant { get; set; }
+    }
+
 
 }

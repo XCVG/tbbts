@@ -84,18 +84,24 @@ namespace CommonCore.TurnBasedBattleSystem
 
         private void PresentActionSelect2()
         {
-            //TODO this will be more complicated because it will be per-character
+            //WIP this will be more complicated because it will be per-character
             Debug.LogWarning("PresentActionSelect2");
 
             ActionSelect2Panel.SetActive(true);
 
-            //do we need to do this every time? not really
+            //yeah we'll just do a massive LINQ query every turn, it's FINE
             var playerControlledParticipants = SceneController
                 .ParticipantData
                 .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player)
-                .Where(kvp => kvp.Value.Health > 0) //temporary
+                .Where(kvp => kvp.Value.Health > 0)
+                .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockActions))
                 .ToList();
-            //TODO need to filter by more condition or flag for player-controlled participants that can't do anything this turn because they're paralyzed or dead or whatever
+            var targetableParticipants = SceneController
+                .ParticipantData
+                .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.AI)
+                .Where(kvp => kvp.Value.Health > 0)
+                .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                .ToList();
             int participantIndex = 0;
             presentActionSelectForParticipant();
 
@@ -107,17 +113,17 @@ namespace CommonCore.TurnBasedBattleSystem
                 AttackButton.onClick.RemoveAllListeners();
                 AttackButton.onClick.AddListener(() =>
                 {
-                    //TODO this will be complicated because you need to select a target
-                    //probably need to handle agility better
-                    //TODO
-                    throw new NotImplementedException();
-                    gotoNext();
+                    PickTarget(targetableParticipants, (target) =>
+                    {
+                        SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = target, AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] });
+                        gotoNext();
+                    });
                 });
 
                 GuardButton.onClick.RemoveAllListeners();
                 GuardButton.onClick.AddListener(() =>
                 {
-                    SceneController.ActionQueue.Add(new GuardAction()); //don't need to worry about agility or anything because Guard actions will be reordered ahead of attacks
+                    SceneController.ActionQueue.Add(new GuardAction() { GuardingParticipant = participant.Key }); //don't need to worry about agility or anything because Guard actions will be reordered ahead of attacks
                     gotoNext();
                 });
             }
@@ -135,6 +141,13 @@ namespace CommonCore.TurnBasedBattleSystem
                     ActionSelectDoneCallback();
                 }
             }
+        }
+
+        private void PickTarget(IEnumerable<KeyValuePair<string, ParticipantData>> targetableParticipants, Action<string> callback)
+        {
+            throw new NotImplementedException();
+
+            //TODO like, y'know, all the things
         }
 
         public void ShowMessage(string message) => ShowMessage(message, null);

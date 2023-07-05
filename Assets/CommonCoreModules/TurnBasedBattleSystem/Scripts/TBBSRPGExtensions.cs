@@ -64,4 +64,14 @@ namespace CommonCore.TurnBasedBattleSystem
         Agility = 15,
         Luck = 16
     }
+
+    public abstract class TBBSConditionBase : Condition
+    {
+        //TODO probably redirect NiceName and Description to lookups
+
+        //if set, prevent this participant from carrying out any actions
+        public virtual bool BlockActions { get; }
+        //if set, prevent this participant from being targeted
+        public virtual bool BlockTargeting { get; }
+    }
 }

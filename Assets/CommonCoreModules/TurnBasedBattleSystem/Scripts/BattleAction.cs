@@ -33,11 +33,25 @@ namespace CommonCore.TurnBasedBattleSystem
     {
         public string AttackingParticipant { get; set; }
         public string DefendingParticipant { get; set; }
+        public int AttackPriority { get; set; }
+
+        public override bool IsReorderable => true;
+
+        public override int Priority => AttackPriority; //I don't like this, we'll see if it lasts
     }
 
     public class GuardAction : BattleAction
     {
         public string GuardingParticipant { get; set; }
+
+        public override bool IsReorderable => false;
+    }
+
+    //TODO probably move this over to another file
+    //and, like, y'know, implement it
+    public class SimpleAttackAction : BaseAttackAction
+    {
+
     }
 
 

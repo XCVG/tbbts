@@ -132,6 +132,8 @@ namespace CommonCore.TurnBasedBattleSystem
         public IReadOnlyList<string> Moves { get; set; } //should probably be private/protected set
         public IReadOnlyDictionary<TBBSStatType, float> Stats { get; set; } //should probably be private/protected set?
 
+        public List<Condition> Conditions { get; set; } = new List<Condition>();
+
         public void LoadValuesFromCharacterModel()
         {
             Energy = CharacterModel.Energy;
@@ -160,6 +162,8 @@ namespace CommonCore.TurnBasedBattleSystem
                 Stats = stats;
             }
 
+            Conditions.AddRange(CharacterModel.Conditions);
+
             //TODO we may want to bring damage types into TBBS at some point
             //TODO we will eventually have to handle inventory and conditions here
         }
@@ -172,6 +176,9 @@ namespace CommonCore.TurnBasedBattleSystem
             CharacterModel.Magic = Magic;
 
             //TODO we will eventually have to handle inventory and conditions here
+
+            CharacterModel.Conditions.Clear();
+            CharacterModel.Conditions.AddRange(Conditions);
         }
 
     }

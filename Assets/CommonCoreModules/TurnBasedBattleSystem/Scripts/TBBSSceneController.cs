@@ -57,6 +57,8 @@ namespace CommonCore.TurnBasedBattleSystem
             SpawnBattlers();
             CurrentPhase = BattlePhase.Intro;
 
+            //TODO should probably set MenuGameStateLocked
+
             StartCoroutine(CoIntro());
         }
 

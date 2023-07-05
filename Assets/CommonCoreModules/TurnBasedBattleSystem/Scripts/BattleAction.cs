@@ -44,7 +44,8 @@ namespace CommonCore.TurnBasedBattleSystem
     {
         public string GuardingParticipant { get; set; }
 
-        public override bool IsReorderable => false;
+        public override int Priority => int.MaxValue;
+        public override bool IsReorderable => true;
     }
 
     //TODO probably move this over to another file

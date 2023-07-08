@@ -148,9 +148,9 @@ namespace CommonCore.TurnBasedBattleSystem
             Moves = CharacterModel.GetMoveset();
 
             //copy TBBS stats
-            foreach(int i in Enum.GetValues(typeof(TBBSStatType)))
-            {
-                var stats = new Dictionary<TBBSStatType, float>();
+            var stats = new Dictionary<TBBSStatType, float>();
+            foreach (int i in Enum.GetValues(typeof(TBBSStatType)))
+            {                
                 if(CharacterModel.DerivedStats.Stats.TryGetValue(i, out int statVal))
                 {
                     stats[(TBBSStatType)i] = statVal;
@@ -158,9 +158,9 @@ namespace CommonCore.TurnBasedBattleSystem
                 else
                 {
                     stats[(TBBSStatType)i] = 1; //default is 1, because reasons
-                }
-                Stats = stats;
+                }                
             }
+            Stats = stats;
 
             Conditions.AddRange(CharacterModel.Conditions);
 

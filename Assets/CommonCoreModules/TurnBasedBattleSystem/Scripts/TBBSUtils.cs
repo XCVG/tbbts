@@ -92,9 +92,21 @@ namespace CommonCore.TurnBasedBattleSystem
                             CharacterModelSource = BattleParticipant.CharacterModelSourceType.InitializeNew,
                             CharacterModelName = "TestCharacterModel",
                             ControlledBy = BattleParticipant.ControlledByType.AI,
-                            BattlerPosition = new Vector3(3f, 0, 0),
+                            BattlerPosition = new Vector3(1f, 0, -2f),
                             BattlerRotation = new Vector3(0, -90, 0),
                             DisplayName = "Enemy1"
+                        }
+                    },
+                    { "EnemyBattleParticipant2",
+                        new BattleParticipant()
+                        {
+                            Battler = "TestBattler",
+                            CharacterModelSource = BattleParticipant.CharacterModelSourceType.InitializeNew,
+                            CharacterModelName = "TestCharacterModel",
+                            ControlledBy = BattleParticipant.ControlledByType.AI,
+                            BattlerPosition = new Vector3(4f, 0, 2f),
+                            BattlerRotation = new Vector3(0, -90, 0),
+                            DisplayName = "Enemy2"
                         }
                     }
                 }

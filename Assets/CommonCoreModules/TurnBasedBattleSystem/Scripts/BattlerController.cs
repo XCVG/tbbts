@@ -11,6 +11,8 @@ namespace CommonCore.TurnBasedBattleSystem
     /// </summary>
     public abstract class BattlerController : MonoBehaviour
     {
+        public Transform OverlayPoint;
+
         public virtual void Init(TBBSSceneController sceneController)
         {
 

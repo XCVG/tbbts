@@ -1,3 +1,5 @@
+using CommonCore.Util;
+using CommonCore.UI;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -5,6 +7,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using CommonCore.World;
 
 namespace CommonCore.TurnBasedBattleSystem
 {
@@ -15,6 +18,8 @@ namespace CommonCore.TurnBasedBattleSystem
     {
         [Header("References"), SerializeField]
         private TBBSSceneController SceneController = null;
+        [SerializeField]
+        private Canvas UICanvas = null;
 
         [Header("Message Panel"), SerializeField]
         private GameObject MessagePanel = null;
@@ -39,10 +44,31 @@ namespace CommonCore.TurnBasedBattleSystem
         [SerializeField]
         private Button GuardButton = null;
 
+        [Header("Pick Target"), SerializeField]
+        private GameObject PickTargetContainer = null;
+        [SerializeField]
+        private GameObject PickTargetInstructionPanel = null;
+        [SerializeField]
+        private Text PickTargetInstructionText = null;
+        [SerializeField]
+        private GameObject PickTargetButtonTemplate = null;
+
+        [Header("Overlay"), SerializeField]
+        private GameObject OverlayContainer = null;
+
+        [Header("Theming"), SerializeField]
+        private bool EnableTheming = true;
+        [SerializeField]
+        private string ThemeOverride = null;
+
+
         private Action ActionSelectDoneCallback;
 
         private void Start()
         {
+            if (UICanvas == null)
+                UICanvas = GetComponent<Canvas>();
+
             //TODO theming
         }
 
@@ -85,9 +111,7 @@ namespace CommonCore.TurnBasedBattleSystem
         private void PresentActionSelect2()
         {
             //WIP this will be more complicated because it will be per-character
-            Debug.LogWarning("PresentActionSelect2");
-
-            ActionSelect2Panel.SetActive(true);
+            Debug.LogWarning("PresentActionSelect2");            
 
             //yeah we'll just do a massive LINQ query every turn, it's FINE
             var playerControlledParticipants = SceneController
@@ -107,12 +131,16 @@ namespace CommonCore.TurnBasedBattleSystem
 
             void presentActionSelectForParticipant()
             {
+                ActionSelect2Panel.SetActive(true);
                 var participant = playerControlledParticipants[participantIndex];
                 ParticipantNameText.text = participant.Value.DisplayName;
 
+                //TODO don't show if 0 targetable participants
                 AttackButton.onClick.RemoveAllListeners();
                 AttackButton.onClick.AddListener(() =>
                 {
+                    //TODO handle case of 1 targetable participants
+
                     PickTarget(targetableParticipants, (target) =>
                     {
                         SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = target, AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] });
@@ -126,6 +154,8 @@ namespace CommonCore.TurnBasedBattleSystem
                     SceneController.ActionQueue.Add(new GuardAction() { GuardingParticipant = participant.Key }); //don't need to worry about agility or anything because Guard actions will be reordered ahead of attacks
                     gotoNext();
                 });
+
+                EventSystem.current.SetSelectedGameObject(AttackButton.gameObject);
             }
 
             void gotoNext()
@@ -145,9 +175,52 @@ namespace CommonCore.TurnBasedBattleSystem
 
         private void PickTarget(IEnumerable<KeyValuePair<string, ParticipantData>> targetableParticipants, Action<string> callback)
         {
-            throw new NotImplementedException();
+            //hide overlay if showing
+            HideOverlay();
 
-            //TODO like, y'know, all the things
+            ActionSelect2Panel.SetActive(false);
+
+            PickTargetInstructionPanel.SetActive(true);
+            PickTargetContainer.SetActive(true);
+            PickTargetContainer.transform.DestroyAllChildren();
+
+            var camera = WorldUtils.GetActiveCamera();
+            var canvasTransform = UICanvas.transform as RectTransform;
+
+            List<GameObject> buttonObjs = new List<GameObject>();
+            foreach (var target in targetableParticipants)
+            {
+                string targetName = target.Key;
+                var battler = GetBattlerForParticipant(targetName);
+
+                var newButtonObj = GameObject.Instantiate(PickTargetButtonTemplate, PickTargetContainer.transform);
+                var newButtonTransform = newButtonObj.GetComponent<RectTransform>();
+                var newButton = newButtonObj.GetComponent<Button>();
+                newButton.onClick.AddListener(() => targetPicked(targetName));
+
+                //should probably pull this upstream into utils
+                Vector2 vpPos = camera.WorldToViewportPoint((battler.OverlayPoint.Ref() ?? battler.transform).position);
+                Vector2 screenPos = new Vector2(((vpPos.x * canvasTransform.sizeDelta.x) - (canvasTransform.sizeDelta.x * 0.5f)), ((vpPos.y * canvasTransform.sizeDelta.y) - (canvasTransform.sizeDelta.y * 0.5f)));
+                newButtonTransform.anchoredPosition = screenPos;
+
+                buttonObjs.Add(newButtonObj);
+            }
+
+            ApplyThemeTo(PickTargetContainer.transform);
+            EventSystem.current.SetSelectedGameObject(buttonObjs[0]);
+
+            void targetPicked (string targetName)
+            {
+                //clean up and return 
+
+                PickTargetInstructionPanel.SetActive(false);
+                PickTargetContainer.transform.DestroyAllChildren();
+
+                callback(targetName);
+            }
+
+            //TODO abort handling, styling, etc
+
         }
 
         public void ShowMessage(string message) => ShowMessage(message, null);
@@ -181,6 +254,49 @@ namespace CommonCore.TurnBasedBattleSystem
         }
 
         //TODO overlay show/hide/update methods
+
+        public void HideOverlay()
+        {
+            OverlayContainer.SetActive(false);
+        }
+
+        public void ShowOverlay()
+        {
+            OverlayContainer.SetActive(true);
+        }
+
+        public void RepaintOverlay()
+        {
+            //TODO
+        }
+
+        private BattlerController GetBattlerForParticipant(string name)
+        {
+            if (SceneController.Battlers.TryGetValue(name, out var battlerController))
+                return battlerController;
+
+            Debug.LogWarning($"No battler found for participant \"{name}\"");
+
+            return null;
+        }
+
+        private void ApplyThemeTo(Transform targetElement)
+        {
+            if (!EnableTheming)
+                return;
+
+            var uiModule = CCBase.GetModule<UIModule>();
+
+            if (!string.IsNullOrEmpty(ThemeOverride))
+            {
+                uiModule.ApplyThemeRecurse(targetElement, uiModule.GetThemeByName(ThemeOverride));
+            }
+            else
+            {
+                uiModule.ApplyThemeRecurse(targetElement);
+            }
+        }
+
 
     }
 }

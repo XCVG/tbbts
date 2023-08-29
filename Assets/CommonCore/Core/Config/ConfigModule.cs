@@ -34,7 +34,7 @@ namespace CommonCore.Config
         public override void OnAllModulesLoaded()
         {
             ConfigState.Save();
-            ApplyConfiguration();
+            ApplyConfiguration(true);
 
             RegisterConfigPanel("GraphicsOptionsPanel", 1000, CoreUtils.LoadResource<GameObject>("UI/GraphicsOptionsPanel"));
         }
@@ -100,18 +100,27 @@ namespace CommonCore.Config
         /// <summary>
         /// Apply the current ConfigState configuration to the game
         /// </summary>
-        public void ApplyConfiguration()
+        public void ApplyConfiguration() => ApplyConfiguration(false);
+
+
+        /// <summary>
+        /// Apply the current ConfigState configuration to the game
+        /// </summary>
+        public void ApplyConfiguration(bool isInitialConfig)
         {
 
             //AUDIO CONFIG
             AudioListener.volume = ConfigState.Instance.SoundVolume;
-            var ac = AudioSettings.GetConfiguration();
+            if(isInitialConfig) //only safe to do this if resources aren't loaded yet
+            {
+                var ac = AudioSettings.GetConfiguration();
 #if UNITY_WSA
-            if ((int)ConfigState.Instance.SpeakerMode == 0)
-                ConfigState.Instance.SpeakerMode = AudioSpeakerMode.Stereo;
+                if ((int)ConfigState.Instance.SpeakerMode == 0)
+                    ConfigState.Instance.SpeakerMode = AudioSpeakerMode.Stereo;
 #endif
-            ac.speakerMode = ConfigState.Instance.SpeakerMode;
-            AudioSettings.Reset(ac);
+                ac.speakerMode = ConfigState.Instance.SpeakerMode;
+                AudioSettings.Reset(ac);
+            }
 
             //VIDEO CONFIG
             QualitySettings.SetQualityLevel(ConfigState.Instance.GraphicsQuality, true);
@@ -121,7 +130,11 @@ namespace CommonCore.Config
             }
 
             if(!CoreParams.IsEditor && CoreParams.Platform != RuntimePlatform.WebGLPlayer)
-                Screen.SetResolution(ConfigState.Instance.Resolution.x, ConfigState.Instance.Resolution.y, ConfigState.Instance.FullScreen, ConfigState.Instance.RefreshRate);
+            {
+                var refreshRate = new RefreshRate() { numerator = (uint)ConfigState.Instance.RefreshRate, denominator = 1 };
+                Screen.SetResolution(ConfigState.Instance.Resolution.x, ConfigState.Instance.Resolution.y, ConfigState.Instance.FullScreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed, refreshRate);
+            }
+                
 
             QualitySettings.vSyncCount = ConfigState.Instance.VsyncCount;
             Application.targetFrameRate = ConfigState.Instance.MaxFrames;
@@ -164,7 +177,7 @@ namespace CommonCore.Config
 
             //texture scale
             var textureScale = (int)ConfigState.Instance.TextureScale;
-            QualitySettings.masterTextureLimit = textureScale;
+            QualitySettings.globalTextureMipmapLimit = textureScale;
 
             //texture filtering
             var textureFiltering = ConfigState.Instance.AnisotropicFiltering;

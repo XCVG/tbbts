@@ -696,6 +696,12 @@ namespace CommonCore
 
         internal static void OnApplicationQuit()
         {
+            if(Terminated)
+            {
+                Debug.LogWarning("[Core] tried to call OnApplicationExit but core is already shut down");
+                return;
+            }
+
             //call OnGameEnd if we are in a game
             Type thunkType = BaseGameTypes.FirstOrDefault(t => t.Name == "GameStateExistsThunk");
             IReadOnlyValueThunk<bool> gameStateExistsThunk = Activator.CreateInstance(thunkType) as IReadOnlyValueThunk<bool>;
@@ -706,8 +712,21 @@ namespace CommonCore
 
             Debug.Log("[Core] Cleaning up CommonCore...");
 
+            //execute pre-shutdown methods
+            foreach (CCModule m in Modules)
+            {
+                try
+                {
+                    m.OnCoreShutdown();
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                }
+            }
+
             //execute quit methods and unload modules
-            foreach(CCModule m in ((IEnumerable<CCModule>)Modules).Reverse())
+            foreach (CCModule m in ((IEnumerable<CCModule>)Modules).Reverse())
             {
                 try
                 {

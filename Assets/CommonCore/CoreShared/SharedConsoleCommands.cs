@@ -77,21 +77,7 @@ public static class SharedConsoleCommands
     //***** LOAD/SAVE
 
     /// <summary>
-    /// Forces a full load from file, with scene transition
-    /// </summary>
-    [Command]
-    static void LoadClean(string name)
-    {
-        MetaState.Instance.TransitionType = SceneTransitionType.LoadGame;
-        MetaState.Instance.LoadSave = name;
-        MetaState.Instance.Intents.Clear();
-
-        SceneManager.LoadScene(CoreParams.LoadingScene); //TODO put loading scene name somewhere
-        
-    }
-
-    /// <summary>
-    /// Loads game state from a file, then restores it to this scene
+    /// Loads a game from a file, loading and restoring the current scene from the save
     /// </summary>
     [Command]
     static void Load(string name)
@@ -155,7 +141,7 @@ public static class SharedConsoleCommands
     [Command]
     static void WarpDirect(string scene)
     {
-        SceneManager.LoadScene(scene);
+        CoreUtils.LoadScene(scene);
     }
 
     /// <summary>
@@ -177,6 +163,15 @@ public static class SharedConsoleCommands
     static void EndGame()
     {
         SharedUtils.EndGame();
+    }
+
+    /// <summary>
+    /// Shows game over screen
+    /// </summary>
+    [Command]
+    static void ShowGameOver()
+    {
+        SharedUtils.ShowGameOver();
     }
 
     //***** SCREENFADE

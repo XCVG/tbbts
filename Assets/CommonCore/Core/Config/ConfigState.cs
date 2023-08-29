@@ -296,7 +296,7 @@ namespace CommonCore.Config
         [JsonIgnore]
         public Dictionary<string, object> CustomConfigVars { get; private set; } = new Dictionary<string, object>(); //note that serialization/deserialization can explode in edge cases
         [JsonIgnore]
-        private Dictionary<string, JToken> UnparseableConfigVars { get; set; } = new Dictionary<string, JToken>(); //used to preserve unparseable config vars when loading config
+        private Dictionary<string, JToken> UnparseableCustomConfigVars { get; set; } = new Dictionary<string, JToken>(); //used to preserve unparseable config vars when loading config
 
         //this bit of hackery lets us preserve unparseable/broken data in the config.json file
         [JsonProperty(PropertyName = nameof(CustomConfigVars))]
@@ -309,13 +309,20 @@ namespace CommonCore.Config
                 {
                     if (kvp.Value == null)
                         continue;
-
-                    JObject subObject = JObject.FromObject(kvp.Value);
-                    var type = kvp.Value.GetType();
-                    subObject.AddFirst(new JProperty("$type", string.Format("{0}, {1}", type.ToString(), type.Assembly.GetName().Name)));
-                    jo.Add(kvp.Key, subObject);
+                    var token = JToken.FromObject(kvp.Value);
+                    if(token.Type == JTokenType.Object)
+                    {
+                        JObject subObject = JObject.FromObject(kvp.Value);
+                        var type = kvp.Value.GetType();
+                        subObject.AddFirst(new JProperty("$type", string.Format("{0}, {1}", type.ToString(), type.Assembly.GetName().Name)));
+                        jo.Add(kvp.Key, subObject);
+                    }
+                    else
+                    {
+                        jo.Add(kvp.Key, token);
+                    }                   
                 }
-                foreach(KeyValuePair<string, JToken> kvp in UnparseableConfigVars)
+                foreach(KeyValuePair<string, JToken> kvp in UnparseableCustomConfigVars)
                 {
                     //we may end up with duplicates in rare edge cases
                     if(!jo.ContainsKey(kvp.Key))
@@ -345,11 +352,20 @@ namespace CommonCore.Config
 
                     try
                     {
+
+                        //new for 5.x: allow primitive values
+                        var primitiveValue = item.ToValueAuto();
+                        if(primitiveValue != null)
+                        {
+                            CustomConfigVars[kvp.Key] = primitiveValue;
+                            continue;
+                        }
+
                         if (item["$type"] == null || string.IsNullOrEmpty(item["$type"].Value<string>()))
                         {
                             //can't get type, add as unparseable
                             Debug.LogWarning($"[Config] Can't parse custom config node {kvp.Key} because no type information is provided");
-                            UnparseableConfigVars.Add(kvp.Key, item);
+                            UnparseableCustomConfigVars.Add(kvp.Key, item);
                             continue;
                         }
 
@@ -358,7 +374,7 @@ namespace CommonCore.Config
                         {
                             //can't find type, add as unparseable
                             Debug.LogWarning($"[Config] Can't parse custom config node {kvp.Key} because type \"{type}\" could not be found");
-                            UnparseableConfigVars.Add(kvp.Key, item);
+                            UnparseableCustomConfigVars.Add(kvp.Key, item);
                             continue;
                         }
 
@@ -368,7 +384,7 @@ namespace CommonCore.Config
                     {
                         //failed somewhere, add as unparseable
                         Debug.LogWarning($"[Config] Can't parse custom config node {kvp.Key} because of an error ({e.GetType().Name})");
-                        UnparseableConfigVars[kvp.Key] = item;
+                        UnparseableCustomConfigVars[kvp.Key] = item;
                         if (CoreParams.IsDebug)
                             Debug.LogException(e);
                     }

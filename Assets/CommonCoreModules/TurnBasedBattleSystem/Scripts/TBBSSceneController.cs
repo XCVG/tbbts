@@ -1,5 +1,6 @@
 using CommonCore.LockPause;
 using CommonCore.RpgGame.Rpg;
+using CommonCore.Scripting;
 using CommonCore.State;
 using System;
 using System.Collections;
@@ -28,6 +29,8 @@ namespace CommonCore.TurnBasedBattleSystem
 
         private BattlePhase CurrentPhase;
         private DecisionSubPhase CurrentDecisionSubPhase;
+
+        private BattleEndData BattleEndData;
 
         public override void Awake()
         {
@@ -125,9 +128,12 @@ namespace CommonCore.TurnBasedBattleSystem
                 case BattlePhase.Intro:
                     break;
                 case BattlePhase.Decision:
-                    //TODO handle pre-condition-check
-                    CurrentDecisionSubPhase = DecisionSubPhase.PlayerInput;
-                    UIController.PromptPlayerAndGetActions(SignalPlayerGetActionsComplete);
+                    CurrentDecisionSubPhase = DecisionSubPhase.PreConditionCheck;
+                    if(DoDecisionPhasePreConditionCheck())
+                    {
+                        CurrentDecisionSubPhase = DecisionSubPhase.PlayerInput;
+                        UIController.PromptPlayerAndGetActions(SignalPlayerGetActionsComplete);
+                    }                    
                     break;
                 case BattlePhase.Action:
                     if(!CurrentActionStarted && CurrentAction != null)
@@ -137,6 +143,7 @@ namespace CommonCore.TurnBasedBattleSystem
                     }
                     break;
                 case BattlePhase.Outro:
+                    StartCoroutine(CoOutro());
                     break;
                 default:
                     break;
@@ -153,7 +160,7 @@ namespace CommonCore.TurnBasedBattleSystem
                     break;
                 case BattlePhase.Intro:
                     break;
-                case BattlePhase.Decision: 
+                case BattlePhase.Decision:
                     if(CurrentDecisionSubPhase == DecisionSubPhase.AI)
                     {
                         DoDecisionPhaseAI();
@@ -181,21 +188,79 @@ namespace CommonCore.TurnBasedBattleSystem
         private IEnumerator CoIntro()
         {
             yield return null;
-            bool advanced = false;
-            UIController.ShowMessage("Battle Start!", () =>
-            {
-                advanced = true;
-            });
-            while(!advanced)
-            {
-                yield return null;
-            }
+
+            yield return UIController.ShowMessageAndWait("Battle Start!");
+
             EnterPhase(BattlePhase.Decision);
         }
 
         private IEnumerator CoOutro()
         {
             yield return null;
+
+            var ctx = new TBBSOnPreOutroContext()
+            {
+                BattleEndData = BattleEndData
+            };
+            ScriptingModule.CallNamedHooked("TBBSOnPreOutro", this, ctx);
+            bool didShowCustomMessage = false;
+            if(!string.IsNullOrEmpty(ctx.MessageOverride))
+            {
+                yield return UIController.ShowMessageAndWait(ctx.MessageOverride);
+                didShowCustomMessage = true;
+            }
+
+            if(!ctx.SkipDefaultHandling)
+            {
+                if (BattleEndData.PlayerWon)
+                {
+                    if (!didShowCustomMessage)
+                        yield return UIController.ShowMessageAndWait("Congratulations! You have won the battle!");
+                    if (BattleDefinition.WinMicroscript != null && BattleDefinition.WinMicroscript.Count > 0)
+                    {
+                        foreach (var ms in BattleDefinition.WinMicroscript)
+                        {
+                            ms.Execute();
+                        }
+                    }
+                }
+                else
+                {
+                    if (!didShowCustomMessage)
+                        yield return UIController.ShowMessageAndWait("You lost!");
+                    if (BattleDefinition.LoseMicroscript != null && BattleDefinition.LoseMicroscript.Count > 0)
+                    {
+                        foreach (var ms in BattleDefinition.LoseMicroscript)
+                        {
+                            ms.Execute();
+                        }
+                    }
+                    if (BattleDefinition.GameOverIfBattleLost)
+                    {
+                        SharedUtils.ShowGameOver();
+                        yield break;
+                    }
+                }
+
+                if (BattleDefinition.CommitCharacterModelsAtEnd)
+                {
+                    foreach (var participant in ParticipantData)
+                    {
+                        switch (participant.Value.BattleParticipant.CharacterModelSource)
+                        {
+                            case BattleParticipant.CharacterModelSourceType.FromParty:
+                            case BattleParticipant.CharacterModelSourceType.FromPlayer:
+                                //this should "just work", I think
+                                Debug.Log("Saving values to character model for " + participant.Key);
+                                participant.Value.SaveValuesToCharacterModel();
+                                break;
+                        }
+
+                    }
+                }
+            }            
+
+            SharedUtils.ChangeScene(ctx.NextSceneOverride ?? BattleDefinition.NextScene);
         }
         
         //setup stuff below
@@ -262,13 +327,47 @@ namespace CommonCore.TurnBasedBattleSystem
 
         //decision phase handlers
 
+        private bool DoDecisionPhasePreConditionCheck()
+        {
+            Debug.Log("DoDecisionPhasePreConditionCheck");
+
+            //at least for PoC, we only need to check two conditions:
+            //-if there are no player-controlled battlers with health > 0, lose battle
+            bool playerStillAlive = ParticipantData
+                .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player)
+                .Where(kvp => kvp.Value.Health > 0)
+                .Any();
+            if(!playerStillAlive)
+            {
+                BattleEndData = new BattleEndData() { PlayerWon = false };
+                EnterPhase(BattlePhase.Outro);
+                return false;
+            }
+            //-if there are no ai-controlled battlers with health > 0, win battle
+            bool aiStillAlive = ParticipantData
+                .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.AI)
+                .Where(kvp => kvp.Value.Health > 0)
+                .Any();
+            if (!aiStillAlive)
+            {
+                BattleEndData = new BattleEndData() { PlayerWon = true };
+                EnterPhase(BattlePhase.Outro);
+                return false;
+            }
+
+            return true; //return true to continue decision phase as normal
+        }
+
         private void DoDecisionPhaseAI()
         {
             //TODO all the AI
             Debug.Log("DoDecisionPhaseAI");
 
             var aiParticipants = ParticipantData
-                .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.AI).ToList();
+                .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.AI)
+                .Where(kvp => kvp.Value.Health > 0)
+                .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockActions))
+                .ToList();
             foreach(var p in aiParticipants)
             {
                 //will probably go with a very simple random chance at least initially
@@ -279,6 +378,8 @@ namespace CommonCore.TurnBasedBattleSystem
         private void DoDecisionPhaseReorder()
         {
             Debug.Log("DoDecisionPhaseReorder");
+
+            ScriptingModule.CallNamedHooked("TBBSOnPreReorder", this, ActionQueue);
 
             //reordered flee to the beginning (unless isReorderable is false)
             int fleeActionIdx = ActionQueue.FindIndex(a => a is  FleeAction);
@@ -334,6 +435,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 }
             }
 
+            ScriptingModule.CallNamedHooked("TBBSOnPostReorder", this, ActionQueue);
 
         }
 

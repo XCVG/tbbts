@@ -223,6 +223,19 @@ namespace CommonCore.TurnBasedBattleSystem
 
         }
 
+        public IEnumerator ShowMessageAndWait(string message)
+        {
+            bool advanced = false;
+            ShowMessage(message, () =>
+            {
+                advanced = true;
+            });
+            while (!advanced)
+            {
+                yield return null;
+            }
+        }
+
         public void ShowMessage(string message) => ShowMessage(message, null);
 
         public void ShowMessage(string message, Action callback) //TODO more args?

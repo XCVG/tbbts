@@ -4,6 +4,7 @@ using CommonCore.State;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace CommonCore.TurnBasedBattleSystem
@@ -25,7 +26,6 @@ namespace CommonCore.TurnBasedBattleSystem
         private BattleAction CurrentAction;
         private bool CurrentActionStarted = false;
 
-        //TODO this will need to be a state machine. Possibly to handle "decision phase" vs "action phase" but certainly to handle Intro->Battle->Outro
         private BattlePhase CurrentPhase;
         private DecisionSubPhase CurrentDecisionSubPhase;
 
@@ -110,6 +110,7 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             //TODO move to AI stage, possibly trigger some scripting, then begin next action
             Debug.LogWarning("SignalPlayerGetActionsComplete");
+            CurrentDecisionSubPhase = DecisionSubPhase.AI;
         }
 
         private void EnterPhase(BattlePhase newPhase)
@@ -152,7 +153,17 @@ namespace CommonCore.TurnBasedBattleSystem
                     break;
                 case BattlePhase.Intro:
                     break;
-                case BattlePhase.Decision:                    
+                case BattlePhase.Decision: 
+                    if(CurrentDecisionSubPhase == DecisionSubPhase.AI)
+                    {
+                        DoDecisionPhaseAI();
+                        CurrentDecisionSubPhase = DecisionSubPhase.Reorder;
+                    }
+                    else if(CurrentDecisionSubPhase == DecisionSubPhase.Reorder)
+                    {
+                        DoDecisionPhaseReorder();
+                        EnterPhase(BattlePhase.Action);
+                    }
                     break;
                 case BattlePhase.Action:
                     CurrentAction?.Update();
@@ -247,6 +258,83 @@ namespace CommonCore.TurnBasedBattleSystem
                 Battlers.Add(bd.Key, bc);
                 Debug.Log($"Spawned battler {bd.Key} (prefab: {bd.Value.BattleParticipant.Battler})");
             }
+        }
+
+        //decision phase handlers
+
+        private void DoDecisionPhaseAI()
+        {
+            //TODO all the AI
+            Debug.Log("DoDecisionPhaseAI");
+
+            var aiParticipants = ParticipantData
+                .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.AI).ToList();
+            foreach(var p in aiParticipants)
+            {
+                //will probably go with a very simple random chance at least initially
+            }
+
+        }
+
+        private void DoDecisionPhaseReorder()
+        {
+            Debug.Log("DoDecisionPhaseReorder");
+
+            //reordered flee to the beginning (unless isReorderable is false)
+            int fleeActionIdx = ActionQueue.FindIndex(a => a is  FleeAction);
+            if(fleeActionIdx >= 0)
+            {
+                var fleeAction = ActionQueue[fleeActionIdx];
+                ActionQueue.RemoveAt(fleeActionIdx);
+                ActionQueue.Insert(0, fleeAction);
+            }
+
+            //reorder guard actions ahead of attack actions (unless isReorderable is false)
+            //reorder guard actions by priority
+            List<BattleAction> guardActions = new List<BattleAction>();
+            int firstActionIdx = int.MaxValue;
+            for(int i = ActionQueue.Count - 1; i >= 0; i--)
+            {
+                var action = ActionQueue[i];
+                if(action is GuardAction && action.IsReorderable)
+                {
+                    guardActions.Insert(0, action);
+                    ActionQueue.RemoveAt(i);
+                    firstActionIdx = i;
+                }
+            }
+            if(guardActions.Count > 0)
+            {
+                guardActions = guardActions.OrderByDescending(b => b.Priority).ToList();
+                for(int i = 0; i < guardActions.Count;i++)
+                {
+                    ActionQueue.Insert(firstActionIdx + i, guardActions[i]);
+                }
+            }
+
+            //reorder attack actions by priority
+            List<BattleAction> attackActions = new List<BattleAction>();
+            int firstAttackActionIdx = int.MaxValue;
+            for (int i = ActionQueue.Count - 1; i >= 0; i--)
+            {
+                var action = ActionQueue[i];
+                if (action is BaseAttackAction && action.IsReorderable)
+                {
+                    attackActions.Insert(0, action);
+                    ActionQueue.RemoveAt(i);
+                    firstAttackActionIdx = i;
+                }
+            }
+            if(attackActions.Count > 0)
+            {
+                attackActions = attackActions.OrderByDescending(b => b.Priority).ToList();
+                for (int i = 0; i < attackActions.Count; i++)
+                {
+                    ActionQueue.Insert(firstAttackActionIdx + i, attackActions[i]);
+                }
+            }
+
+
         }
 
     }    

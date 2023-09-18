@@ -13,6 +13,7 @@ namespace CommonCore.TurnBasedBattleSystem
     {
         public static readonly string CharacterModelResourcePath = "Data/TurnBasedBattles/CharacterModels";
         public static readonly string CharacterModelMovesetKey = "TBBSMoveset";
+        public static readonly string MoveModelResourcePath = "Data/TurnBasedBattles/Moves";
 
         public static BattleDefinition GetBattleDefinitionFromMetaState()
         {
@@ -113,6 +114,56 @@ namespace CommonCore.TurnBasedBattleSystem
             };
 
             return bd;
+        }
+
+        public static Dictionary<string, MoveDefinition> GetMoveDefinitions()
+        {
+            var moves = new Dictionary<string, MoveDefinition>();
+
+            //add default moves
+            moves.Add("Attack", new MoveDefinition()
+            {
+                Name = "Attack",
+                Animation = "Attack",
+                HitEffect = "DefaultHit",
+                Power = 20,
+                Speed = 0,
+                Target = MoveTarget.SingleEnemy,
+                RepeatType = MoveRepeatType.Single,
+                Flags = new List<MoveFlag>()
+            });
+
+            moves.Add("Guard", new MoveDefinition()
+            {
+                Name = "Guard",
+                Animation = "Guard",
+                HitEffect = null,
+                Power = 0,
+                Speed = 0,
+                Target = MoveTarget.Self,
+                RepeatType = MoveRepeatType.Single,
+                Flags = new List<MoveFlag>()
+            });
+
+            //load external moves
+            try
+            {
+                var moveJson = CoreUtils.LoadResource<TextAsset>(MoveModelResourcePath);
+                var moveData = CoreUtils.LoadJson<Dictionary<string, MoveDefinition>>(moveJson.text);
+                foreach(var kvp in moveData)
+                {
+                    kvp.Value.Name = kvp.Key;
+                }
+                moves.AddRangeReplaceExisting(moveData);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("Failed to load move definitions from jason");
+                Debug.LogException(ex);
+            }
+            
+
+            return moves;
         }
     }
 }

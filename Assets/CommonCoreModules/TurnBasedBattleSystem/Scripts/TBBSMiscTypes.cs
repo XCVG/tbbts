@@ -1,5 +1,6 @@
 using CommonCore.RpgGame.Rpg;
 using CommonCore.RpgGame.State;
+using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -197,6 +198,76 @@ namespace CommonCore.TurnBasedBattleSystem
         public bool SkipDefaultHandling { get; set; }
         public string MessageOverride { get; set; }
         public string NextSceneOverride { get; set; }
+    }
+
+    public enum MoveTarget
+    {
+        None,
+        Self,
+        SingleEnemy,
+        SingleAlly,
+        SingleParticipant,
+        AllEnemies,
+        AllAllies,
+        AllParticipants
+    }
+
+    public enum MoveRepeatType
+    {
+        Single,
+        SameTarget,
+        RandomTarget
+    }
+
+    public enum MoveFlag
+    {
+        Unknown,
+        PrecedeAll, //for quick attacks etc
+        AnimateFirstOnly, //if set, will not animate repeats
+        UseSpecialAttack,
+        UseSpecialDefense //uses special defense OF TARGET to calculate damage ON TARGET
+    }
+
+    public class MoveDefinition
+    {
+        //hot modifying this is possible since it doesn't use private set, but I'm too lazy to write a constructor and initial set isn't supported in Unity
+        //but we reload moves for every battle so it doesn't matter much anyway
+
+        [JsonProperty]
+        public string Name { get; set; }
+
+        [JsonProperty]
+        public MoveTarget Target { get; set; }
+
+        //repeat data
+        [JsonProperty]
+        public MoveRepeatType RepeatType { get; set; }
+        [JsonProperty]
+        public int RepeatCount { get; set; }
+
+        [JsonProperty]
+        public string Animation { get; set; }
+        [JsonProperty]
+        public string HitEffect { get; set; }
+
+        [JsonProperty]
+        public float Power { get; set; }
+        [JsonProperty]
+        public float Speed { get; set; }
+        [JsonProperty]
+        public float MagicUse { get; set; }
+
+        [JsonProperty]
+        public IList<MoveFlag> Flags { get; set; }
+
+        [JsonProperty]
+        public IDictionary<string, object> ExtraData { get; set; }
+
+        public bool HasFlag(MoveFlag flag)
+        {
+            return (Flags != null) && Flags.Contains(flag);
+        }
+
     }
 
 }

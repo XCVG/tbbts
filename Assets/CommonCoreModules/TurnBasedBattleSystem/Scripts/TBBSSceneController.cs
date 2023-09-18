@@ -21,6 +21,8 @@ namespace CommonCore.TurnBasedBattleSystem
         public Dictionary<string, ParticipantData> ParticipantData { get; private set; } = new Dictionary<string, ParticipantData>();
         public List<BattleAction> ActionQueue { get; private set; } = new List<BattleAction>();
 
+        public Dictionary<string, MoveDefinition> MoveDefinitions { get; private set; } = new Dictionary<string, MoveDefinition>();
+
         public int TurnCount { get; private set; }
 
         public BattleDefinition BattleDefinition { get; private set; }
@@ -46,6 +48,8 @@ namespace CommonCore.TurnBasedBattleSystem
         public override void Start()
         {
             base.Start();
+
+            MoveDefinitions = TBBSUtils.GetMoveDefinitions();
 
             //get battle definition from metastate
             BattleDefinition = TBBSUtils.GetBattleDefinitionFromMetaState();

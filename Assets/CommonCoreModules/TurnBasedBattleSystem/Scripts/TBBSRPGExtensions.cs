@@ -73,5 +73,15 @@ namespace CommonCore.TurnBasedBattleSystem
         public virtual bool BlockActions { get; }
         //if set, prevent this participant from being targeted
         public virtual bool BlockTargeting { get; }
+
+        //if set, remove after n turns (-1 for "end of this turn")
+        public virtual int RemoveAfterNumTurns { get; }
+
+        public int ElapsedTurns { get; set; }
+    }
+
+    public class TBBSGuardCondition : TBBSConditionBase
+    {
+        public override int RemoveAfterNumTurns => -1;
     }
 }

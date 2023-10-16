@@ -445,6 +445,20 @@ namespace CommonCore.TurnBasedBattleSystem
                 }
             }
 
+            //ensure a ConditionUpdateAction exists and is at the end
+            int conditionUpdateActionIdx = ActionQueue.FindIndex(a => a is ConditionUpdateAction);
+            if (conditionUpdateActionIdx >= 0)
+            {
+                var conditionUpdateAction = ActionQueue[conditionUpdateActionIdx];
+                ActionQueue.RemoveAt(conditionUpdateActionIdx);
+                ActionQueue.Add(conditionUpdateAction);
+            }
+            else
+            {
+                var conditionUpdateAction = new ConditionUpdateAction();
+                ActionQueue.Add(conditionUpdateAction);
+            }
+
             ScriptingModule.CallNamedHooked("TBBSOnPostReorder", this, ActionQueue);
 
         }

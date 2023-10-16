@@ -13,6 +13,7 @@ namespace CommonCore.TurnBasedBattleSystem
     {
         public static readonly string CharacterModelResourcePath = "Data/TurnBasedBattles/CharacterModels";
         public static readonly string CharacterModelMovesetKey = "TBBSMoveset";
+        public static readonly string CharacterModelTargetingPolicyKey = "TBBSTargetingPolicy";
         public static readonly string MoveModelResourcePath = "Data/TurnBasedBattles/Moves";
 
         public static BattleDefinition GetBattleDefinitionFromMetaState()
@@ -41,6 +42,16 @@ namespace CommonCore.TurnBasedBattleSystem
                     new CharacterMoveEntry() { Move = "Guard", Weight = 1}
                 }
             };
+        }
+
+        public static ParticipantTargetingPolicy GetTargetingPolicy(this CharacterModel characterModel)
+        {
+            if (characterModel.ExtraData.TryGetValue(CharacterModelTargetingPolicyKey, out object rawValue) && Enum.TryParse(typeof(ParticipantTargetingPolicy), rawValue.ToString(), out object parsedResult))
+            {
+                return (ParticipantTargetingPolicy)parsedResult;
+            }
+
+            return ParticipantTargetingPolicy.Random;
         }
 
         public static CharacterModel LoadCharacterModel(string name)

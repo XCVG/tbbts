@@ -381,6 +381,110 @@ namespace CommonCore.TurnBasedBattleSystem
             {
                 //will probably go with a very simple random chance at least initially
                 Debug.Log($"Participant ${p.Key} choosing action");
+
+                //use move weights to decide move...
+                IList<CharacterMoveEntry> moves = p.Value.MoveSet.Moves;
+
+                //TODO limit moveset based on flags and p's HP threshold
+
+                float[] cumulative = new float[moves.Count];
+                float currTotal = 0;
+                for(int i = 0; i < cumulative.Length; i++)
+                {
+                    currTotal += moves[i].Weight;
+                    cumulative[i] = currTotal;
+                }
+                double value = CoreUtils.Random.NextDouble() * cumulative[cumulative.Length - 1];
+                int index = Array.BinarySearch(cumulative, (float)value);
+                if (index >= 0)
+                    index = ~index;
+                var cMove = moves[index];
+
+                //...and participant character model targeting policy to decide target
+                string targetParticipant;
+                var moveData = MoveDefinitions[cMove.Move];
+                switch (moveData.Target)
+                {
+                    case MoveTarget.Self:
+                        targetParticipant = p.Key;
+                        break;
+                    case MoveTarget.SingleEnemy:
+                        {
+                            string preferredTarget = null;
+                            //attempt to get preferred target
+                            switch (p.Value.TargetingPolicy)
+                            {
+                                case ParticipantTargetingPolicy.PreferPlayer:
+                                    var player = ParticipantData
+                                        .Where(kvp => kvp.Value.CharacterModel.IsPlayer)
+                                        .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player)
+                                        .Where(kvp => kvp.Value.Health > 0)
+                                        .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                                        .Select(kvp => kvp.Key)
+                                        .FirstOrDefault();
+                                    if (!string.IsNullOrEmpty(player))
+                                        preferredTarget = player;
+                                    break;
+                                case ParticipantTargetingPolicy.PreferWeakest:
+                                    var weakest = ParticipantData
+                                        .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player)
+                                        .Where(kvp => kvp.Value.Health > 0)
+                                        .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                                        .OrderBy(kvp => kvp.Value.Health)
+                                        .Select(kvp => kvp.Key)
+                                        .FirstOrDefault();
+                                    if (!string.IsNullOrEmpty(weakest))
+                                        preferredTarget = weakest;
+                                    break;
+                                case ParticipantTargetingPolicy.PreferStrongest:
+                                    var strongest = ParticipantData
+                                        .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player)
+                                        .Where(kvp => kvp.Value.Health > 0)
+                                        .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                                        .OrderBy(kvp => kvp.Value.Health)
+                                        .Reverse()
+                                        .Select(kvp => kvp.Key)
+                                        .FirstOrDefault();
+                                    if (!string.IsNullOrEmpty(strongest))
+                                        preferredTarget = strongest;
+                                    break;
+                            }
+
+                            if(preferredTarget == null)
+                            {
+                                var targetableEnemies = ParticipantData
+                                   .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player)
+                                   .Where(kvp => kvp.Value.Health > 0)
+                                   .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                                   .ToList();
+                                targetParticipant = targetableEnemies[CoreUtils.Random.Next(targetableEnemies.Count)].Key;
+                            }
+                        }                        
+                        break;
+                    case MoveTarget.SingleAlly:
+                        var targetableAllies = ParticipantData
+                           .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.AI)
+                           .Where(kvp => kvp.Value.Health > 0)
+                           .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                           .Where(kvp => kvp.Key != p.Key)
+                           .ToList();
+                        targetParticipant = targetableAllies[CoreUtils.Random.Next(targetableAllies.Count)].Key;
+                        break;
+                    case MoveTarget.SingleParticipant:
+                        var targetableParticipants = ParticipantData
+                           .Where(kvp => kvp.Value.Health > 0)
+                           .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                           .Where(kvp => kvp.Key != p.Key)
+                           .ToList();
+                        targetParticipant = targetableParticipants[CoreUtils.Random.Next(targetableParticipants.Count)].Key;
+                        break;
+                    default:
+                        targetParticipant = null;
+                        break;
+                }
+
+                //TODO actually create action
+
             }
 
         }

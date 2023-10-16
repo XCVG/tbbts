@@ -59,9 +59,11 @@
 					"Move": "Attack"
 				},
 				{
-					"Move": "Guard"
+					"Move": "Guard",
+					"Weight": 0.1
 				}
 			]
-		}
+		},
+		"TBBSTargetingPolicy": "PreferPlayer"
 	}
 }

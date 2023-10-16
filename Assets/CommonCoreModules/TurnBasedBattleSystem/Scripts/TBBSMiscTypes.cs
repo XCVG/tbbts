@@ -100,10 +100,12 @@ namespace CommonCore.TurnBasedBattleSystem
         }
     }
 
-
-    public class CharacterViewModel
+    public enum ParticipantTargetingPolicy
     {
-        public CharacterModel CharacterModel { get; set; }
+        Random,
+        PreferPlayer,
+        PreferWeakest,
+        PreferStrongest
     }
 
     //effectively a view model
@@ -132,6 +134,7 @@ namespace CommonCore.TurnBasedBattleSystem
         //TODO other stats, like agility/attack/etc from DerivedStats?
 
         public CharacterMoveset MoveSet { get; set; } //should probably be private/protected set
+        public ParticipantTargetingPolicy TargetingPolicy { get; set; }
         public IReadOnlyDictionary<TBBSStatType, float> Stats { get; set; } //should probably be private/protected set?
 
         public List<Condition> Conditions { get; set; } = new List<Condition>();
@@ -148,7 +151,9 @@ namespace CommonCore.TurnBasedBattleSystem
             MaxMagic = CharacterModel.DerivedStats.MaxMagic;
 
             MoveSet = CharacterModel.GetMoveset();
-            Debug.Log(MoveSet.ToDetailString());
+            //Debug.Log(MoveSet.ToDetailString());
+            TargetingPolicy = CharacterModel.GetTargetingPolicy();
+            //Debug.Log(TargetingPolicy);
 
             //copy TBBS stats
             var stats = new Dictionary<TBBSStatType, float>();

@@ -369,9 +369,6 @@ namespace CommonCore.TurnBasedBattleSystem
 
         private void DoDecisionPhaseAI()
         {
-            //TODO all the AI
-            Debug.Log("DoDecisionPhaseAI");
-
             var aiParticipants = ParticipantData
                 .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.AI)
                 .Where(kvp => kvp.Value.Health > 0)
@@ -383,9 +380,23 @@ namespace CommonCore.TurnBasedBattleSystem
                 Debug.Log($"Participant ${p.Key} choosing action");
 
                 //use move weights to decide move...
-                IList<CharacterMoveEntry> moves = p.Value.MoveSet.Moves;
+                IList<CharacterMoveEntry> moves = new List<CharacterMoveEntry>(p.Value.MoveSet.Moves);
 
-                //TODO limit moveset based on flags and p's HP threshold
+                //limit moveset based on flags and p's HP threshold
+                for(int i = moves.Count - 1; i >= 0; i--)
+                {
+                    var move = moves[i];
+                    if(move.HasFlag(CharacterMoveFlag.OnlyIfHpAboveThreshold))
+                    {
+                        if (p.Value.Health < move.Threshold)
+                            moves.RemoveAt(i);
+                    }
+                    else if(move.HasFlag(CharacterMoveFlag.OnlyIfHpBelowThreshold))
+                    {
+                        if (p.Value.Health > move.Threshold)
+                            moves.RemoveAt(i);
+                    }
+                }
 
                 float[] cumulative = new float[moves.Count];
                 float currTotal = 0;
@@ -400,8 +411,15 @@ namespace CommonCore.TurnBasedBattleSystem
                     index = ~index;
                 var cMove = moves[index];
 
+                if(cMove.Move.Equals("Guard", StringComparison.OrdinalIgnoreCase))
+                {
+                    ActionQueue.Add(new GuardAction() { GuardingParticipant = p.Key });
+
+                    continue;
+                }
+
                 //...and participant character model targeting policy to decide target
-                string targetParticipant;
+                string targetParticipant = null;
                 var moveData = MoveDefinitions[cMove.Move];
                 switch (moveData.Target)
                 {
@@ -478,12 +496,16 @@ namespace CommonCore.TurnBasedBattleSystem
                            .ToList();
                         targetParticipant = targetableParticipants[CoreUtils.Random.Next(targetableParticipants.Count)].Key;
                         break;
-                    default:
-                        targetParticipant = null;
-                        break;
                 }
 
-                //TODO actually create action
+                //actually create action
+                var action = new SimpleAttackAction() { 
+                    AttackingParticipant = p.Key, 
+                    DefendingParticipant =  targetParticipant,
+                    AttackPriority = (int)p.Value.Stats.GetOrDefault(TBBSStatType.Agility),
+                    Move = cMove.Move
+                };
+                ActionQueue.Add(action);
 
             }
 

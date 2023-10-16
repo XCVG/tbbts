@@ -240,7 +240,7 @@ namespace CommonCore.TurnBasedBattleSystem
     public enum MoveDamageCalculation
     {
         None,
-        Normal //4 * atk - 2 * def
+        Normal //max(1, 4 * power * atk - (guarding ? 4 : 2) * def)
     }
 
     public class MoveDefinition

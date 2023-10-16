@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using CommonCore.World;
+using static UnityEngine.GraphicsBuffer;
 
 namespace CommonCore.TurnBasedBattleSystem
 {
@@ -135,18 +136,34 @@ namespace CommonCore.TurnBasedBattleSystem
                 var participant = playerControlledParticipants[participantIndex];
                 ParticipantNameText.text = participant.Value.DisplayName;
 
-                //TODO don't show if 0 targetable participants
                 AttackButton.onClick.RemoveAllListeners();
-                AttackButton.onClick.AddListener(() =>
+                if (targetableParticipants.Count == 0)
                 {
-                    //TODO handle case of 1 targetable participants
-
-                    PickTarget(targetableParticipants, (target) =>
+                    AttackButton.interactable = false;
+                }
+                else
+                {
+                    AttackButton.interactable = true;
+                    AttackButton.onClick.AddListener(() =>
                     {
-                        SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = target, AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] });
-                        gotoNext();
+                        if (targetableParticipants.Count == 1)
+                        {
+                            SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = targetableParticipants[0].Key, AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] });
+                            gotoNext();
+                        }
+                        else
+                        {
+                            PickTarget(targetableParticipants, (target) =>
+                            {
+                                SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = target, AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] });
+                                gotoNext();
+                            });
+                        }
+
+                        
                     });
-                });
+                }
+                
 
                 GuardButton.onClick.RemoveAllListeners();
                 GuardButton.onClick.AddListener(() =>

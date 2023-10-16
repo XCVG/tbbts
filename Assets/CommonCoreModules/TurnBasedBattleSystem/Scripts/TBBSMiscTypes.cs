@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace CommonCore.TurnBasedBattleSystem
@@ -130,7 +131,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
         //TODO other stats, like agility/attack/etc from DerivedStats?
 
-        public IReadOnlyList<string> Moves { get; set; } //should probably be private/protected set
+        public CharacterMoveset MoveSet { get; set; } //should probably be private/protected set
         public IReadOnlyDictionary<TBBSStatType, float> Stats { get; set; } //should probably be private/protected set?
 
         public List<Condition> Conditions { get; set; } = new List<Condition>();
@@ -146,7 +147,8 @@ namespace CommonCore.TurnBasedBattleSystem
             Magic = CharacterModel.Magic;
             MaxMagic = CharacterModel.DerivedStats.MaxMagic;
 
-            Moves = CharacterModel.GetMoveset();
+            MoveSet = CharacterModel.GetMoveset();
+            Debug.Log(MoveSet.ToDetailString());
 
             //copy TBBS stats
             var stats = new Dictionary<TBBSStatType, float>();
@@ -225,7 +227,15 @@ namespace CommonCore.TurnBasedBattleSystem
         PrecedeAll, //for quick attacks etc
         AnimateFirstOnly, //if set, will not animate repeats
         UseSpecialAttack,
-        UseSpecialDefense //uses special defense OF TARGET to calculate damage ON TARGET
+        UseSpecialDefense, //uses special defense OF TARGET to calculate damage ON TARGET
+        IsHealingMove,
+        IsGuardMove
+    }
+
+    public enum MoveDamageCalculation
+    {
+        None,
+        Normal //4 * atk - 2 * def
     }
 
     public class MoveDefinition
@@ -261,6 +271,9 @@ namespace CommonCore.TurnBasedBattleSystem
         public IList<MoveFlag> Flags { get; set; }
 
         [JsonProperty]
+        public MoveDamageCalculation DamageCalculation { get; set; }
+
+        [JsonProperty]
         public IDictionary<string, object> ExtraData { get; set; }
 
         public bool HasFlag(MoveFlag flag)
@@ -268,6 +281,42 @@ namespace CommonCore.TurnBasedBattleSystem
             return (Flags != null) && Flags.Contains(flag);
         }
 
+    }
+
+    public class CharacterMoveset
+    {
+        [JsonProperty]
+        public IList<CharacterMoveEntry> Moves { get; set; }
+
+        public string ToDetailString()
+        {
+            return string.Join(',', Moves.Select(m => $"{{{m.Move}}}"));
+        }
+    }
+
+    public enum CharacterMoveFlag
+    {
+        Unknown = 0,
+        OnlyIfHpBelowThreshold,
+        OnlyIfHpAboveThreshold,
+        IsSpecial
+    }
+
+    public class CharacterMoveEntry
+    {
+        [JsonProperty]
+        public string Move { get; set; }
+        [JsonProperty]
+        public float Weight { get; set; }
+        [JsonProperty]
+        public IList<CharacterMoveFlag> Flags { get; set; }
+        [JsonProperty]
+        public float Threshold { get; set; } //depends on flags
+
+        public bool HasFlag(CharacterMoveFlag flag)
+        {
+            return (Flags != null) && Flags.Contains(flag);
+        }
     }
 
 }

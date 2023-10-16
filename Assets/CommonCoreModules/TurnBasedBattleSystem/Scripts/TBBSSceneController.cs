@@ -140,6 +140,11 @@ namespace CommonCore.TurnBasedBattleSystem
                     }                    
                     break;
                 case BattlePhase.Action:
+                    if(CurrentAction == null)
+                    {
+                        CurrentAction = ActionQueue.First();
+                    }
+
                     if(!CurrentActionStarted && CurrentAction != null)
                     {
                         CurrentAction.Start(CreateContext());
@@ -375,6 +380,7 @@ namespace CommonCore.TurnBasedBattleSystem
             foreach(var p in aiParticipants)
             {
                 //will probably go with a very simple random chance at least initially
+                Debug.Log($"Participant ${p.Key} choosing action");
             }
 
         }

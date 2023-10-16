@@ -15,6 +15,7 @@ namespace CommonCore.TurnBasedBattleSystem
         public virtual void Start(BattleContext context)
         {
             Context = context;
+            Debug.Log($"Start BattleAction->{GetType().Name}");
         }
 
         public virtual void Update()
@@ -52,7 +53,7 @@ namespace CommonCore.TurnBasedBattleSystem
     //and, like, y'know, implement it
     public class SimpleAttackAction : BaseAttackAction
     {
-
+        public string Move { get; set; }
     }
 
 

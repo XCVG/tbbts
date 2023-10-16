@@ -50,5 +50,18 @@
 		"RightWeapon": 0
 	},
 	"EquippedIDs": {		
+	},
+	"ExtraData": {
+		"TBBSMoveset": {
+			"$type": "CommonCore.TurnBasedBattleSystem.CharacterMoveset, Assembly-CSharp",
+			"Moves": [
+				{
+					"Move": "Attack"
+				},
+				{
+					"Move": "Guard"
+				}
+			]
+		}
 	}
 }

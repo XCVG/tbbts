@@ -28,20 +28,19 @@ namespace CommonCore.TurnBasedBattleSystem
             MetaState.Instance.GameData[BattleDefinition.DefaultBattleDefinitionKey] = battleDefinition;
         }
 
-        public static IReadOnlyList<string> GetMoveset(this CharacterModel characterModel)
+        public static CharacterMoveset GetMoveset(this CharacterModel characterModel)
         {
-            if(characterModel.ExtraData.TryGetValue(CharacterModelMovesetKey, out object rawCollection))
+            if(characterModel.ExtraData.TryGetValue(CharacterModelMovesetKey, out object rawCollection) && rawCollection is CharacterMoveset ms)
             {
-                if(rawCollection is IEnumerable<string> enumerableCollection)
-                {
-                    return enumerableCollection
-                        .Distinct()
-                        .OrderBy(k => k)
-                        .ToList();
-                }
+                return ms;
             }
 
-            return new List<string>() { "Attack", "Guard" };
+            return new CharacterMoveset() { Moves = new List<CharacterMoveEntry>()
+                {
+                    new CharacterMoveEntry() { Move = "Attack", Weight = 1},
+                    new CharacterMoveEntry() { Move = "Guard", Weight = 1}
+                }
+            };
         }
 
         public static CharacterModel LoadCharacterModel(string name)
@@ -128,6 +127,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 HitEffect = "DefaultHit",
                 Power = 20,
                 Speed = 0,
+                DamageCalculation = MoveDamageCalculation.Normal,
                 Target = MoveTarget.SingleEnemy,
                 RepeatType = MoveRepeatType.Single,
                 Flags = new List<MoveFlag>()
@@ -142,7 +142,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 Speed = 0,
                 Target = MoveTarget.Self,
                 RepeatType = MoveRepeatType.Single,
-                Flags = new List<MoveFlag>()
+                Flags = new List<MoveFlag>() {  MoveFlag.IsGuardMove }
             });
 
             //load external moves

@@ -377,7 +377,7 @@ namespace CommonCore.TurnBasedBattleSystem
             foreach(var p in aiParticipants)
             {
                 //will probably go with a very simple random chance at least initially
-                Debug.Log($"Participant ${p.Key} choosing action");
+                Debug.Log($"Participant {p.Key} choosing action");
 
                 //use move weights to decide move...
                 IList<CharacterMoveEntry> moves = new List<CharacterMoveEntry>(p.Value.MoveSet.Moves);
@@ -398,29 +398,35 @@ namespace CommonCore.TurnBasedBattleSystem
                     }
                 }
 
-                float[] cumulative = new float[moves.Count];
-                float currTotal = 0;
+                //Debug.Log(moves.ToNiceString(m => m.Move));
+                double[] cumulative = new double[moves.Count];
+                double currTotal = 0;
                 for(int i = 0; i < cumulative.Length; i++)
                 {
                     currTotal += moves[i].Weight;
                     cumulative[i] = currTotal;
                 }
+                //Debug.Log(cumulative.ToNiceString());
                 double value = CoreUtils.Random.NextDouble() * cumulative[cumulative.Length - 1];
-                int index = Array.BinarySearch(cumulative, (float)value);
-                if (index >= 0)
-                    index = ~index;
+                int index = 0;
+                for(; index < cumulative.Length; index++)
+                {
+                    if (cumulative[index] >= value)
+                        break;
+                }
                 var cMove = moves[index];
 
                 if(cMove.Move.Equals("Guard", StringComparison.OrdinalIgnoreCase))
                 {
                     ActionQueue.Add(new GuardAction() { GuardingParticipant = p.Key });
-
+                    Debug.Log($"Participant {p.Key} chose to Guard");
                     continue;
                 }
 
                 //...and participant character model targeting policy to decide target
                 string targetParticipant = null;
                 var moveData = MoveDefinitions[cMove.Move];
+                //Debug.Log(moveData.Target);
                 switch (moveData.Target)
                 {
                     case MoveTarget.Self:
@@ -430,6 +436,7 @@ namespace CommonCore.TurnBasedBattleSystem
                         {
                             string preferredTarget = null;
                             //attempt to get preferred target
+                            //Debug.Log(p.Value.TargetingPolicy);
                             switch (p.Value.TargetingPolicy)
                             {
                                 case ParticipantTargetingPolicy.PreferPlayer:
@@ -475,8 +482,11 @@ namespace CommonCore.TurnBasedBattleSystem
                                    .Where(kvp => kvp.Value.Health > 0)
                                    .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
                                    .ToList();
-                                targetParticipant = targetableEnemies[CoreUtils.Random.Next(targetableEnemies.Count)].Key;
+                                //Debug.Log("targetable:" + targetableEnemies.ToNiceString(p => p.Key));
+                                preferredTarget = targetableEnemies[UnityEngine.Random.Range(0,targetableEnemies.Count)].Key;
                             }
+
+                            targetParticipant = preferredTarget;
                         }                        
                         break;
                     case MoveTarget.SingleAlly:
@@ -505,6 +515,7 @@ namespace CommonCore.TurnBasedBattleSystem
                     AttackPriority = (int)p.Value.Stats.GetOrDefault(TBBSStatType.Agility),
                     Move = cMove.Move
                 };
+                Debug.Log($"Participant {p.Key} attacking {targetParticipant} with {cMove.Move}");
                 ActionQueue.Add(action);
 
             }
@@ -539,6 +550,8 @@ namespace CommonCore.TurnBasedBattleSystem
                     ActionQueue.RemoveAt(i);
                     firstActionIdx = i;
                 }
+                if (action is BaseAttackAction)
+                    firstActionIdx = i;
             }
             if(guardActions.Count > 0)
             {

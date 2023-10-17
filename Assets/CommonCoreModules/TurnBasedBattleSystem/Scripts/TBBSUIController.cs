@@ -148,14 +148,14 @@ namespace CommonCore.TurnBasedBattleSystem
                     {
                         if (targetableParticipants.Count == 1)
                         {
-                            SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = targetableParticipants[0].Key, AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] });
+                            SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = targetableParticipants[0].Key, Move = "Attack", AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] });
                             gotoNext();
                         }
                         else
                         {
                             PickTarget(targetableParticipants, (target) =>
                             {
-                                SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = target, AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] });
+                                SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = target, Move = "Attack", AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] });
                                 gotoNext();
                             });
                         }

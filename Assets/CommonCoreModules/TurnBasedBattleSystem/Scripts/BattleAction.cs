@@ -16,7 +16,7 @@ namespace CommonCore.TurnBasedBattleSystem
         public virtual void Start(BattleContext context)
         {
             Context = context;
-            Debug.Log($"Start BattleAction->{GetType().Name}");
+            Debug.Log($"Start BattleAction->{GetType().Name} (priority: {Priority})");
         }
 
         public virtual void Update()
@@ -70,6 +70,47 @@ namespace CommonCore.TurnBasedBattleSystem
     public class SimpleAttackAction : BaseAttackAction
     {
         public string Move { get; set; }
+
+        private MoveDefinition MoveDefinition;
+
+        public override void Start(BattleContext context)
+        {
+            base.Start(context);
+
+            Debug.Log($"attacker: {AttackingParticipant} | target: {DefendingParticipant} | move: {Move}");
+
+            //breaks and iunno why
+            MoveDefinition = context.SceneController.MoveDefinitions[Move];
+            context.SceneController.StartCoroutine(CoDoSimpleAttack());
+        }
+
+        private IEnumerator CoDoSimpleAttack()
+        {
+            Debug.Log("CoDoSimpleAttack");
+
+            //TODO calculate damage (noting that this may be healing)
+            //ie call TBBSUtils.CalculateDamage for each victim
+
+            //TODO show message based on lookup from term to TBBS_TERMS
+
+            Context.UIController.HideOverlay();
+
+            //TODO will need to handle repeats eventually but will get to that later
+
+            //TODO signal battler to play animation (calculate target points based on move definition options here)
+            //also handle playing of the sound effect here
+
+            //TODO wait for battler animation to finish
+
+            //TODO apply damage (noting that it may affect multiple participants)
+
+            yield break;
+
+            Context.UIController.ClearMessage();
+            Context.UIController.ShowOverlay();
+            Context.UIController.RepaintOverlay();            
+            Context.CompleteCallback();
+        }
     }
 
     public class ConditionUpdateAction : BattleAction

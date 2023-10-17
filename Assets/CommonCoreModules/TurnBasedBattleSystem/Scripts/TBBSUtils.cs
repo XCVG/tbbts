@@ -141,7 +141,8 @@ namespace CommonCore.TurnBasedBattleSystem
                 DamageCalculation = MoveDamageCalculation.Normal,
                 Target = MoveTarget.SingleEnemy,
                 RepeatType = MoveRepeatType.Single,
-                Flags = new List<MoveFlag>()
+                Flags = new List<MoveFlag>(),
+                MotionHint = MoveMotionHint.HitTarget
             });
 
             moves.Add("Guard", new MoveDefinition()
@@ -175,6 +176,13 @@ namespace CommonCore.TurnBasedBattleSystem
             
 
             return moves;
+        }
+
+        public static float CalculateDamage(MoveDefinition move, ParticipantData attacker, ParticipantData defender)
+        {
+            //TODO ALL the complexity!
+
+            throw new NotImplementedException();
         }
     }
 }

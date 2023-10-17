@@ -47,7 +47,14 @@ namespace CommonCore.TurnBasedBattleSystem
     /// </summary>
     public class BattlerAnimationArgs
     {
-        public Vector3 Target { get; set; }
+        public Vector3 TargetPosition { get; set; }
+        public Vector3 HitEffectPosition { get; set; }
+
+        public string Animation { get; set; }
+        public float AnimationTimescale { get; set; }
+
+        public string AttackEffect { get; set; }
+        public string HitEffect { get; set; }
 
     }
 
@@ -240,7 +247,22 @@ namespace CommonCore.TurnBasedBattleSystem
     public enum MoveDamageCalculation
     {
         None,
-        Normal //max(1, 4 * power * atk - (guarding ? 4 : 2) * def)
+        Normal, //max(1, 4 * power * atk - (guarding ? 4 : 2) * def)
+        ExactPower
+    }
+
+    public enum MoveMotionHint
+    {
+        None = 0,
+        HitTarget,
+        JumpInPlace
+    }
+
+    public enum MoveHitEffectPositionHint
+    {
+        Target = 0,
+        CenterStage,
+        CenterTargetGroup
     }
 
     public class MoveDefinition
@@ -258,15 +280,12 @@ namespace CommonCore.TurnBasedBattleSystem
         [JsonProperty]
         public MoveRepeatType RepeatType { get; set; }
         [JsonProperty]
-        public int RepeatCount { get; set; }
-
-        [JsonProperty]
-        public string Animation { get; set; }
-        [JsonProperty]
-        public string HitEffect { get; set; }
+        public int RepeatCount { get; set; }        
 
         [JsonProperty]
         public float Power { get; set; }
+        [JsonProperty]
+        public float Randomness { get; set; } //possibly will vary based on DamageCalculation but generally proportional to Power
         [JsonProperty]
         public float Speed { get; set; }
         [JsonProperty]
@@ -277,6 +296,24 @@ namespace CommonCore.TurnBasedBattleSystem
 
         [JsonProperty]
         public MoveDamageCalculation DamageCalculation { get; set; }
+
+        //presentation data (stringly typed garbage)
+        [JsonProperty]
+        public string Animation { get; set; }
+        [JsonProperty]
+        public float AnimationTimescale { get; set; }
+        [JsonProperty]
+        public MoveMotionHint MotionHint { get; set; }
+        [JsonProperty]
+        public string AttackEffect { get; set; }
+        [JsonProperty]
+        public string HitEffect { get; set; }
+        [JsonProperty]
+        public MoveHitEffectPositionHint HitEffectPositionHint { get; set; }
+        [JsonProperty]
+        public string SoundEffect { get; set; }        
+        [JsonProperty]
+        public string Term { get; set; }
 
         [JsonProperty]
         public IDictionary<string, object> ExtraData { get; set; }
@@ -312,7 +349,7 @@ namespace CommonCore.TurnBasedBattleSystem
         [JsonProperty]
         public string Move { get; set; }
         [JsonProperty]
-        public float Weight { get; set; }
+        public float Weight { get; set; } = 1.0f;
         [JsonProperty]
         public IList<CharacterMoveFlag> Flags { get; set; }
         [JsonProperty]

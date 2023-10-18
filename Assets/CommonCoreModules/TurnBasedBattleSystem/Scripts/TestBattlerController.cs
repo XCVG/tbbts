@@ -10,6 +10,9 @@ namespace CommonCore.TurnBasedBattleSystem
     /// </summary>
     public class TestBattlerController : BattlerController
     {
+        public Transform OverlayPoint;
+        public Transform TargetPoint;
+
         public override void PlayAnimation(string animation, Action completeCallback, BattlerAnimationArgs args)
         {
 
@@ -18,6 +21,16 @@ namespace CommonCore.TurnBasedBattleSystem
         public override void SetIdleAnimation(string animation, BattlerAnimationArgs args)
         {
 
+        }
+
+        public override Vector3 GetOverlayPoint()
+        {
+            return OverlayPoint.position;
+        }
+
+        public override Vector3 GetTargetPoint()
+        {
+            return TargetPoint.position;
         }
     }
 

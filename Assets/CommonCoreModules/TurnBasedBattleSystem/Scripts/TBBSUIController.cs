@@ -216,7 +216,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 newButton.onClick.AddListener(() => targetPicked(targetName));
 
                 //should probably pull this upstream into utils
-                Vector2 vpPos = camera.WorldToViewportPoint((battler.OverlayPoint.Ref() ?? battler.transform).position);
+                Vector2 vpPos = camera.WorldToViewportPoint(battler.GetOverlayPoint());
                 Vector2 screenPos = new Vector2(((vpPos.x * canvasTransform.sizeDelta.x) - (canvasTransform.sizeDelta.x * 0.5f)), ((vpPos.y * canvasTransform.sizeDelta.y) - (canvasTransform.sizeDelta.y * 0.5f)));
                 newButtonTransform.anchoredPosition = screenPos;
 

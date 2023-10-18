@@ -10,8 +10,7 @@ namespace CommonCore.TurnBasedBattleSystem
     /// This will eventually control a battler, providing interfaces to animation etc
     /// </summary>
     public abstract class BattlerController : MonoBehaviour
-    {
-        public Transform OverlayPoint;
+    {        
 
         public virtual void Init(TBBSSceneController sceneController)
         {
@@ -23,5 +22,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public abstract void SetIdleAnimation(string animation, BattlerAnimationArgs args);
 
+        public abstract Vector3 GetOverlayPoint();
+        public abstract Vector3 GetTargetPoint();
     }    
 }

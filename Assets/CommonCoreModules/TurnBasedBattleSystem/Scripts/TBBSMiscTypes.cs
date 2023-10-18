@@ -50,7 +50,7 @@ namespace CommonCore.TurnBasedBattleSystem
         public Vector3 TargetPosition { get; set; }
         public Vector3 HitEffectPosition { get; set; }
 
-        public string Animation { get; set; }
+        //public string Animation { get; set; }
         public float AnimationTimescale { get; set; }
 
         public string AttackEffect { get; set; }

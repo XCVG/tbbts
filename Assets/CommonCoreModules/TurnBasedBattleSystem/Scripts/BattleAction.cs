@@ -55,9 +55,31 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             base.Start(context);
 
-
+            context.SceneController.StartCoroutine(CoDoGuard());
         }
 
+        private IEnumerator CoDoGuard()
+        {
+            var participantData = Context.SceneController.ParticipantData[GuardingParticipant];
+            var battler = Context.SceneController.Battlers[GuardingParticipant];
+
+            Context.UIController.HideOverlay();
+            Context.UIController.ShowMessage(participantData.DisplayName + " guards!");
+
+            bool animDone = false;
+            battler.PlayAnimation("Guard", () => { animDone = true; }, new BattlerAnimationArgs()
+            {
+                AnimationTimescale = 1
+            });
+            while (!animDone)
+                yield return null;
+
+            yield return null;
+            Context.UIController.ClearMessage();
+            Context.UIController.ShowOverlay();
+            Context.UIController.RepaintOverlay();
+            Context.CompleteCallback();
+        }
 
         private void AddConditionToParticipant()
         {

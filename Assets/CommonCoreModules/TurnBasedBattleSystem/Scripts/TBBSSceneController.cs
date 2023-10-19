@@ -183,6 +183,11 @@ namespace CommonCore.TurnBasedBattleSystem
                     break;
                 case BattlePhase.Action:
                     CurrentAction?.Update();
+                    if (!CurrentActionStarted && CurrentAction != null)
+                    {
+                        CurrentAction.Start(CreateContext());
+                        CurrentActionStarted = true;
+                    }
                     break;
                 case BattlePhase.Outro:
                     break;

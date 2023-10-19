@@ -56,6 +56,8 @@ namespace CommonCore.TurnBasedBattleSystem
         public string AttackEffect { get; set; }
         public string HitEffect { get; set; }
 
+        public string SoundEffect { get; set; }
+
     }
 
     /// <summary>
@@ -301,7 +303,7 @@ namespace CommonCore.TurnBasedBattleSystem
         [JsonProperty]
         public string Animation { get; set; }
         [JsonProperty]
-        public float AnimationTimescale { get; set; }
+        public float AnimationTimescale { get; set; } = 1f;
         [JsonProperty]
         public MoveMotionHint MotionHint { get; set; }
         [JsonProperty]

@@ -1,3 +1,4 @@
+using CommonCore.StringSub;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -110,23 +111,41 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             Debug.Log("CoDoSimpleAttack");
 
+            var attackingParticipant = Context.SceneController.ParticipantData[AttackingParticipant];
+            var attackingBattler = Context.SceneController.Battlers[AttackingParticipant];
+
             //TODO calculate damage (noting that this may be healing)
             //ie call TBBSUtils.CalculateDamage for each victim
 
-            //TODO show message based on lookup from term to TBBS_TERMS
+            //show message based on lookup from term to TBBS_TERMS
+            string term = Sub.Replace(string.IsNullOrEmpty(MoveDefinition.Term) ? "attacks" : MoveDefinition.Term, "TBBS_TERMS");
+            string message = $"{attackingParticipant.DisplayName} {term}!";
 
             Context.UIController.HideOverlay();
+            Context.UIController.ShowMessage(message);
 
             //TODO will need to handle repeats eventually but will get to that later
 
             //TODO signal battler to play animation (calculate target points based on move definition options here)
-            //also handle playing of the sound effect here
+            bool animDone = false;
+            attackingBattler.PlayAnimation(MoveDefinition.Animation, () => { animDone = true; }, new BattlerAnimationArgs()
+            {
+                AnimationTimescale = MoveDefinition.AnimationTimescale,
+                AttackEffect = MoveDefinition.AttackEffect,
+                HitEffect = MoveDefinition.HitEffect,
+                SoundEffect = MoveDefinition.SoundEffect
+                
+            });
+            while (!animDone)
+                yield return null;
 
             //TODO wait for battler animation to finish
 
             //TODO apply damage (noting that it may affect multiple participants)
 
-            yield break;
+            //TODO hit/react animation should probably move here and be handled by a call to defending battler
+
+            yield return null;
 
             Context.UIController.ClearMessage();
             Context.UIController.ShowOverlay();
@@ -163,6 +182,8 @@ namespace CommonCore.TurnBasedBattleSystem
             }
 
             context.UIController.RepaintOverlay(); //force overlay repaint because conditions have changed
+
+            context.CompleteCallback(); //safe-ish
         }
 
     }

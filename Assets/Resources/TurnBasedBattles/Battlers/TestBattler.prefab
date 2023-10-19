@@ -110,8 +110,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5fa19f1c39951ff49baca565fb91c40d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  AnimationDefinitions:
+  - Name: Guard
+    AnimationName: pain
+    Duration: 2
+    HoldTime: 0
+    Flags: 
+  - Name: Attack
+    AnimationName: punch
+    Duration: 2
+    HoldTime: 2
+    Flags: 
   OverlayPoint: {fileID: 5749025712654227982}
   TargetPoint: {fileID: 7729359709232515958}
+  Animator: {fileID: 7691734214927466564}
 --- !u!1 &7691734215814182647
 GameObject:
   m_ObjectHideFlags: 0
@@ -275,11 +287,21 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 9500000, guid: fd88b9574f2ab094ca6ed0ea41e43593, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 2e67382d5ade7194f9a90c1e02f5b296, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fd88b9574f2ab094ca6ed0ea41e43593, type: 3}
+--- !u!95 &7691734214927466564 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 9500000, guid: fd88b9574f2ab094ca6ed0ea41e43593,
+    type: 3}
+  m_PrefabInstance: {fileID: 7691734214934836516}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &7691734214935228326 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 400002, guid: fd88b9574f2ab094ca6ed0ea41e43593,

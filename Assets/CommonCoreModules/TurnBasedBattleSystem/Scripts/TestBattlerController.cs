@@ -10,12 +10,16 @@ namespace CommonCore.TurnBasedBattleSystem
     /// </summary>
     public class TestBattlerController : BattlerController
     {
+        public BattlerAnimationDefinition[] AnimationDefinitions;
+
+        [Header("References")]
         public Transform OverlayPoint;
         public Transform TargetPoint;
+        public Animator Animator;
 
         public override void PlayAnimation(string animation, Action completeCallback, BattlerAnimationArgs args)
         {
-
+            StartCoroutine(CoDoAnimation(animation, completeCallback, args));
         }
 
         public override void SetIdleAnimation(string animation, BattlerAnimationArgs args)
@@ -32,6 +36,70 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             return TargetPoint.position;
         }
+
+
+        private IEnumerator CoDoAnimation(string animation, Action completeCallback, BattlerAnimationArgs args)
+        {
+            BattlerAnimationDefinition animationDefinition = null;
+            foreach(var a in  AnimationDefinitions)
+            {
+                if(a.Name.Equals(animation, StringComparison.OrdinalIgnoreCase))
+                {
+                    animationDefinition = a;
+                    break;
+                }
+            }
+            if(animationDefinition == null)
+            {
+                Debug.LogWarning($"BattlerController on {gameObject.name} can't play animation {animation} because no definition could be found!");
+                yield return null;
+                completeCallback();
+                yield break;
+            }
+
+            float actualDuration = animationDefinition.Duration * (1f / args.AnimationTimescale);
+            float actualTimescale = 1f / actualDuration;
+
+            Debug.Log($"Duration: {actualDuration} | Timescale: {actualTimescale} | Animation: {animationDefinition.AnimationName}");
+
+            //TODO play additional sound effect if applicable
+            //TODO spawn attack effect if applicable
+
+            Animator.speed = actualTimescale;
+            Animator.Play(animationDefinition.AnimationName);
+
+            //TODO do motion if applicable
+
+            yield return new WaitForSecondsEx(actualDuration, false, LockPause.PauseLockType.AllowCutscene);
+
+            //TODO spawn hit effect if applicable
+
+            yield return new WaitForSecondsEx(animationDefinition.HoldTime * (1f / args.AnimationTimescale), false, LockPause.PauseLockType.AllowCutscene);
+
+            yield return null;
+
+            completeCallback();
+        }
+               
+
+    }
+
+    [Serializable]
+    public class BattlerAnimationDefinition
+    {
+        public string Name;
+        [Tooltip("if unset, will use Name as animation name")]
+        public string AnimationName;
+        public float Duration;
+        public float HoldTime;
+        [NonReorderable]
+        public BattlerAnimationFlag[] Flags;
+    }
+
+    public enum BattlerAnimationFlag
+    {
+        None = 0,
+        PlayHitEffectAtMidpoint //TODO this flag should probably be moved to move definition and renamed
     }
 
 }

@@ -107,7 +107,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 7691734215016971494}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5fa19f1c39951ff49baca565fb91c40d, type: 3}
+  m_Script: {fileID: 11500000, guid: c4e3fe9c742b6ec43aa55956b409bf18, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   AnimationDefinitions:
@@ -115,12 +115,11 @@ MonoBehaviour:
     AnimationName: pain
     Duration: 2
     HoldTime: 0
-    Flags: 
   - Name: Attack
     AnimationName: punch
     Duration: 2
     HoldTime: 2
-    Flags: 
+  IdleAnimation: idle
   OverlayPoint: {fileID: 5749025712654227982}
   TargetPoint: {fileID: 7729359709232515958}
   Animator: {fileID: 7691734214927466564}

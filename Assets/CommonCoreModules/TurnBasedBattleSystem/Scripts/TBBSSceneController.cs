@@ -140,16 +140,21 @@ namespace CommonCore.TurnBasedBattleSystem
                     }                    
                     break;
                 case BattlePhase.Action:
-                    if(CurrentAction == null)
+                    if(ActionQueue.Count == 0)
                     {
-                        CurrentAction = ActionQueue.First();
+                        throw new NotImplementedException("no actions in queue at beginning of action phase!");
+                    }
+                    else if(CurrentAction == null)
+                    {
+                        CurrentAction = ActionQueue[0];
+                        ActionQueue.RemoveAt(0);
                     }
 
-                    if(!CurrentActionStarted && CurrentAction != null)
-                    {
-                        CurrentAction.Start(CreateContext());
-                        CurrentActionStarted = true;
-                    }
+                    //if(!CurrentActionStarted && CurrentAction != null)
+                    //{
+                    //    CurrentAction.Start(CreateContext());
+                    //    CurrentActionStarted = true;
+                    //}
                     break;
                 case BattlePhase.Outro:
                     StartCoroutine(CoOutro());

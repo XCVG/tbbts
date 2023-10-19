@@ -10,9 +10,10 @@ namespace CommonCore.TurnBasedBattleSystem
     /// <summary>
     /// Just for testing for now
     /// </summary>
-    public class TestBattlerController : BattlerController
+    public class SimpleBattlerController : BattlerController
     {
         public BattlerAnimationDefinition[] AnimationDefinitions;
+        public string IdleAnimation;
 
         [Header("References")]
         public Transform OverlayPoint;
@@ -93,7 +94,12 @@ namespace CommonCore.TurnBasedBattleSystem
 
             yield return new WaitForSecondsEx(actualDuration, false, LockPause.PauseLockType.AllowCutscene);
 
-            if(!string.IsNullOrEmpty(args.LateEffect) && !args.PlayEffectAtMidpoint)
+            yield return null;
+
+            Animator.speed = 1;
+            Animator.Play(IdleAnimation);
+
+            if (!string.IsNullOrEmpty(args.LateEffect) && !args.PlayEffectAtMidpoint)
             {
                 WorldUtils.SpawnEffect(args.LateEffect, GetTargetPoint(), Quaternion.identity, null, true);
             }

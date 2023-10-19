@@ -127,14 +127,16 @@ namespace CommonCore.TurnBasedBattleSystem
             //TODO will need to handle repeats eventually but will get to that later
 
             //TODO signal battler to play animation (calculate target points based on move definition options here)
+            bool playEffectAtMidpoint = MoveDefinition.HasFlag(MoveFlag.PlayEffectAtMidpoint);
             bool animDone = false;
             attackingBattler.PlayAnimation(MoveDefinition.Animation, () => { animDone = true; }, new BattlerAnimationArgs()
             {
                 AnimationTimescale = MoveDefinition.AnimationTimescale,
-                AttackEffect = MoveDefinition.AttackEffect,
-                HitEffect = MoveDefinition.HitEffect,
-                SoundEffect = MoveDefinition.SoundEffect
-                
+                InitialEffect = MoveDefinition.AttackEffect,
+                LateEffect = playEffectAtMidpoint ? MoveDefinition.HitEffect : "",
+                SoundEffect = MoveDefinition.SoundEffect,
+                PlayEffectAtMidpoint = playEffectAtMidpoint
+
             });
             while (!animDone)
                 yield return null;
@@ -144,6 +146,8 @@ namespace CommonCore.TurnBasedBattleSystem
             //TODO apply damage (noting that it may affect multiple participants)
 
             //TODO hit/react animation should probably move here and be handled by a call to defending battler
+
+            //TODO end message (x took y damage) ?
 
             yield return null;
 

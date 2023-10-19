@@ -1,3 +1,4 @@
+using CommonCore.Audio;
 using CommonCore.RpgGame.Rpg;
 using CommonCore.RpgGame.State;
 using Newtonsoft.Json;
@@ -51,12 +52,14 @@ namespace CommonCore.TurnBasedBattleSystem
         public Vector3 HitEffectPosition { get; set; }
 
         //public string Animation { get; set; }
-        public float AnimationTimescale { get; set; }
+        public float AnimationTimescale { get; set; } = 1f;
 
-        public string AttackEffect { get; set; }
-        public string HitEffect { get; set; }
+        public string InitialEffect { get; set; }
+        public string LateEffect { get; set; }
 
         public string SoundEffect { get; set; }
+
+        public bool PlayEffectAtMidpoint { get; set; }
 
     }
 
@@ -243,7 +246,8 @@ namespace CommonCore.TurnBasedBattleSystem
         UseSpecialAttack,
         UseSpecialDefense, //uses special defense OF TARGET to calculate damage ON TARGET
         IsHealingMove,
-        IsGuardMove
+        IsGuardMove,
+        PlayEffectAtMidpoint
     }
 
     public enum MoveDamageCalculation

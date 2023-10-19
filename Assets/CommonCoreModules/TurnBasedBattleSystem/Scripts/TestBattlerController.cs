@@ -1,3 +1,5 @@
+using CommonCore.Audio;
+using CommonCore.World;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -16,6 +18,15 @@ namespace CommonCore.TurnBasedBattleSystem
         public Transform OverlayPoint;
         public Transform TargetPoint;
         public Animator Animator;
+
+        private AudioPlayer AudioPlayer;
+
+        public override void Init(TBBSSceneController sceneController)
+        {
+            base.Init(sceneController);
+
+            AudioPlayer = CCBase.GetModule<AudioModule>().AudioPlayer;
+        }
 
         public override void PlayAnimation(string animation, Action completeCallback, BattlerAnimationArgs args)
         {
@@ -60,19 +71,32 @@ namespace CommonCore.TurnBasedBattleSystem
             float actualDuration = animationDefinition.Duration * (1f / args.AnimationTimescale);
             float actualTimescale = 1f / actualDuration;
 
-            Debug.Log($"Duration: {actualDuration} | Timescale: {actualTimescale} | Animation: {animationDefinition.AnimationName}");
+            yield return null;
+            //Debug.Log($"Duration: {actualDuration} | Timescale: {actualTimescale} | Animation: {animationDefinition.AnimationName}");
 
-            //TODO play additional sound effect if applicable
-            //TODO spawn attack effect if applicable
+            // play additional sound effect if applicable
+            if(!string.IsNullOrEmpty(args.SoundEffect))
+            {
+                AudioPlayer.PlaySound(args.SoundEffect, SoundType.Sound, false);
+            }
+            // spawn effect if applicable
+            if (!string.IsNullOrEmpty(args.InitialEffect))
+            {
+                WorldUtils.SpawnEffect(args.InitialEffect, GetTargetPoint(), Quaternion.identity, null, true);
+            }
 
             Animator.speed = actualTimescale;
             Animator.Play(animationDefinition.AnimationName);
 
             //TODO do motion if applicable
+            //TODO spawn late effect if applicable (play at midpoint)
 
             yield return new WaitForSecondsEx(actualDuration, false, LockPause.PauseLockType.AllowCutscene);
 
-            //TODO spawn hit effect if applicable
+            if(!string.IsNullOrEmpty(args.LateEffect) && !args.PlayEffectAtMidpoint)
+            {
+                WorldUtils.SpawnEffect(args.LateEffect, GetTargetPoint(), Quaternion.identity, null, true);
+            }
 
             yield return new WaitForSecondsEx(animationDefinition.HoldTime * (1f / args.AnimationTimescale), false, LockPause.PauseLockType.AllowCutscene);
 
@@ -92,14 +116,6 @@ namespace CommonCore.TurnBasedBattleSystem
         public string AnimationName;
         public float Duration;
         public float HoldTime;
-        [NonReorderable]
-        public BattlerAnimationFlag[] Flags;
-    }
-
-    public enum BattlerAnimationFlag
-    {
-        None = 0,
-        PlayHitEffectAtMidpoint //TODO this flag should probably be moved to move definition and renamed
     }
 
 }

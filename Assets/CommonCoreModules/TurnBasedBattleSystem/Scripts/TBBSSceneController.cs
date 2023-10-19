@@ -210,6 +210,11 @@ namespace CommonCore.TurnBasedBattleSystem
 
             yield return UIController.ShowMessageAndWait("Battle Start!");
 
+            foreach(var battler in Battlers.Values)
+            {
+                battler.SetIdleAnimation("Idle", new BattlerAnimationArgs());
+            }
+
             EnterPhase(BattlePhase.Decision);
         }
 

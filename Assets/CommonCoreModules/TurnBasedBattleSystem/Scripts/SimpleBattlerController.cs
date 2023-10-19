@@ -13,6 +13,7 @@ namespace CommonCore.TurnBasedBattleSystem
     public class SimpleBattlerController : BattlerController
     {
         public BattlerAnimationDefinition[] AnimationDefinitions;
+        public float IdleAnimationTimescale = 1;
         public string IdleAnimation;
 
         [Header("References")]
@@ -36,7 +37,18 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public override void SetIdleAnimation(string animation, BattlerAnimationArgs args)
         {
-
+            //ignore any an all arguments and start/stop default idle animation
+            if(string.IsNullOrEmpty(animation))
+            {
+                Animator.StopPlayback();
+                //Animator.speed = 0; //hack
+            }
+            else
+            {
+                Animator.speed = IdleAnimationTimescale;
+                Animator.Play(IdleAnimation);
+                //Animator.StartPlayback();
+            }            
         }
 
         public override Vector3 GetOverlayPoint()
@@ -96,7 +108,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
             yield return null;
 
-            Animator.speed = 1;
+            Animator.speed = IdleAnimationTimescale;
             Animator.Play(IdleAnimation);
 
             if (!string.IsNullOrEmpty(args.LateEffect) && !args.PlayEffectAtMidpoint)

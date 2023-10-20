@@ -114,6 +114,72 @@ namespace CommonCore.TurnBasedBattleSystem
             var attackingParticipant = Context.SceneController.ParticipantData[AttackingParticipant];
             var attackingBattler = Context.SceneController.Battlers[AttackingParticipant];
 
+            //get defending participant, if applicable
+            ParticipantData defendingParticipant = null;
+            if (!string.IsNullOrEmpty(DefendingParticipant) && (MoveDefinition.Target == MoveTarget.SingleAlly || MoveDefinition.Target == MoveTarget.SingleEnemy || MoveDefinition.Target == MoveTarget.SingleParticipant))
+            {
+                //WIP if defender is already dead handling
+                defendingParticipant = Context.SceneController.ParticipantData.GetOrDefault(DefendingParticipant);
+                if(defendingParticipant == null || defendingParticipant.Health <= 0)
+                {
+                    if(MoveDefinition.AlreadyDeadAction == MoveAlreadyDeadAction.Retarget)
+                    {
+                        Debug.Log("Retargeting SimpleAttackAction because defending participant is dead");
+                        // find a new target based on targeting rules
+                        List<KeyValuePair<string, ParticipantData>> targetableEnemies;
+                        if (MoveDefinition.Target == MoveTarget.SingleEnemy)
+                        {
+                            BattleParticipant.ControlledByType enemyControlledByType = attackingParticipant.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player ? BattleParticipant.ControlledByType.AI : BattleParticipant.ControlledByType.Player;
+
+                            targetableEnemies = Context.SceneController.ParticipantData
+                                       .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == enemyControlledByType)
+                                       .Where(kvp => kvp.Value.Health > 0)
+                                       .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                                       .ToList();
+                        }
+                        else if (MoveDefinition.Target == MoveTarget.SingleAlly)
+                        {
+                            targetableEnemies = Context.SceneController.ParticipantData
+                                       .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == attackingParticipant.BattleParticipant.ControlledBy)
+                                       .Where(kvp => kvp.Value.Health > 0)
+                                       .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                                       .ToList();
+                        }
+                        else
+                        {
+                            targetableEnemies = Context.SceneController.ParticipantData
+                                       .Where(kvp => kvp.Value.Health > 0)
+                                       .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                                       .ToList();
+                        }
+                        
+                        if(targetableEnemies.Count == 0)
+                        {
+                            Debug.Log("Skipping SimpleAttackAction because no participant could be found to retarget to");
+
+                            Context.CompleteCallback();
+                            yield break;
+                        }
+
+                        var selected = targetableEnemies[UnityEngine.Random.Range(0, targetableEnemies.Count)];
+                        defendingParticipant = selected.Value;
+                        Debug.Log("Retargeted SimpleAttackAction to" + selected.Key);
+
+                    }
+                    else if(MoveDefinition.AlreadyDeadAction == MoveAlreadyDeadAction.Skip)
+                    {
+                        Debug.Log("Skipping SimpleAttackAction because defending participant is dead");
+
+                        Context.CompleteCallback();
+                        yield break;
+                    }
+                }
+            }
+            else if(MoveDefinition.Target == MoveTarget.Self)
+            {
+                defendingParticipant = attackingParticipant;
+            }
+
             //TODO calculate damage (noting that this may be healing)
             //ie call TBBSUtils.CalculateDamage for each victim
 
@@ -126,7 +192,10 @@ namespace CommonCore.TurnBasedBattleSystem
 
             //TODO will need to handle repeats eventually but will get to that later
 
-            //TODO signal battler to play animation (calculate target points based on move definition options here)
+            //use mana points if applicable
+            attackingParticipant.Magic -= MoveDefinition.MagicUse;
+
+            //WIP signal battler to play animation (calculate target points based on move definition options here)
             bool playEffectAtMidpoint = MoveDefinition.HasFlag(MoveFlag.PlayEffectAtMidpoint);
             bool animDone = false;
             attackingBattler.PlayAnimation(MoveDefinition.Animation, () => { animDone = true; }, new BattlerAnimationArgs()
@@ -143,9 +212,9 @@ namespace CommonCore.TurnBasedBattleSystem
 
             //TODO wait for battler animation to finish
 
-            //TODO apply damage (noting that it may affect multiple participants)
+            //TODO apply damage (noting that it may affect multiple participants and/or target participant may be null)
 
-            //TODO hit/react animation should probably move here and be handled by a call to defending battler
+            //TODO hit/react animation should probably move here and be handled by a call to defending battler(s)
 
             //TODO end message (x took y damage) ?
 

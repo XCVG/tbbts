@@ -103,6 +103,8 @@ namespace CommonCore.TurnBasedBattleSystem
 
             //TODO do motion if applicable
             //TODO spawn late effect if applicable (play at midpoint)
+            //TODO midpoint callback if applicable 
+            args.MidpointCallback?.Invoke();
 
             yield return new WaitForSecondsEx(actualDuration, false, LockPause.PauseLockType.AllowCutscene);
 

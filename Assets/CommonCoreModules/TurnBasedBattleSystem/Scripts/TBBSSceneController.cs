@@ -94,23 +94,10 @@ namespace CommonCore.TurnBasedBattleSystem
 
         private void SignalActionComplete()
         {
-            //TODO move to next action
-            Debug.LogWarning("SignalActionComplete");
+            Debug.Log("SignalActionComplete");
 
             CurrentActionStarted = false;
             CurrentAction = null;
-
-            if (ActionQueue.Count > 0)
-            {
-                CurrentAction = ActionQueue[0];
-                ActionQueue.RemoveAt(0);
-            }
-            else
-            {
-                //TODO go to next phase
-                throw new NotImplementedException();
-            }            
-
         }
 
         private void SignalPlayerGetActionsComplete()
@@ -139,8 +126,8 @@ namespace CommonCore.TurnBasedBattleSystem
                         UIController.PromptPlayerAndGetActions(SignalPlayerGetActionsComplete);
                     }                    
                     break;
-                case BattlePhase.Action:
-                    if(ActionQueue.Count == 0)
+                case BattlePhase.Action:                    
+                    if (ActionQueue.Count == 0)
                     {
                         throw new NotImplementedException("no actions in queue at beginning of action phase!");
                     }
@@ -149,12 +136,6 @@ namespace CommonCore.TurnBasedBattleSystem
                         CurrentAction = ActionQueue[0];
                         ActionQueue.RemoveAt(0);
                     }
-
-                    //if(!CurrentActionStarted && CurrentAction != null)
-                    //{
-                    //    CurrentAction.Start(CreateContext());
-                    //    CurrentActionStarted = true;
-                    //}
                     break;
                 case BattlePhase.Outro:
                     StartCoroutine(CoOutro());
@@ -188,11 +169,31 @@ namespace CommonCore.TurnBasedBattleSystem
                     break;
                 case BattlePhase.Action:
                     CurrentAction?.Update();
-                    if (!CurrentActionStarted && CurrentAction != null)
+                    if(ActionQueue.Count == 0)
                     {
-                        CurrentAction.Start(CreateContext());
-                        CurrentActionStarted = true;
+                        //end action phase and turn
+
+                        ScriptingModule.CallNamedHooked("TBBSOnActionPhaseEnd", this);
+
+                        CurrentActionStarted = false;
+                        CurrentAction = null;
+                        TurnCount++;
+
+                        EnterPhase(BattlePhase.Decision);
                     }
+                    else
+                    {
+                        if (CurrentAction == null)
+                        {
+                            CurrentAction = ActionQueue[0];
+                            ActionQueue.RemoveAt(0);
+                        }
+                        if (!CurrentActionStarted && CurrentAction != null)
+                        {
+                            CurrentAction.Start(CreateContext());
+                            CurrentActionStarted = true;
+                        }
+                    }                    
                     break;
                 case BattlePhase.Outro:
                     break;
@@ -315,7 +316,8 @@ namespace CommonCore.TurnBasedBattleSystem
                 {
                     CharacterModel = characterModel,
                     BattleParticipant = participant.Value,
-                    DisplayName = participant.Value.DisplayName ?? characterModel.DisplayName
+                    DisplayName = participant.Value.DisplayName ?? characterModel.DisplayName,
+                    Name = participant.Key
                 };
                 bd.LoadValuesFromCharacterModel();
                 ParticipantData.Add(participant.Key, bd);
@@ -615,6 +617,16 @@ namespace CommonCore.TurnBasedBattleSystem
 
             ScriptingModule.CallNamedHooked("TBBSOnPostReorder", this, ActionQueue);
 
+        }
+
+        public void SetDataAndEndBattle(BattleEndData data)
+        {
+            Debug.Log("Setting end data and ending battle now!");
+
+            BattleEndData = data;
+
+            ActionQueue.Clear();
+            EnterPhase(BattlePhase.Outro);
         }
 
     }    

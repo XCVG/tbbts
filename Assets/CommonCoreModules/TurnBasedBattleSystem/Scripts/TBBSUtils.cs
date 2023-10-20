@@ -142,7 +142,8 @@ namespace CommonCore.TurnBasedBattleSystem
                 Target = MoveTarget.SingleEnemy,
                 RepeatType = MoveRepeatType.Single,
                 Flags = new List<MoveFlag>(),
-                MotionHint = MoveMotionHint.HitTarget
+                MotionHint = MoveMotionHint.HitTarget,
+                AlreadyDeadAction = MoveAlreadyDeadAction.Retarget
             });
 
             moves.Add("Guard", new MoveDefinition()

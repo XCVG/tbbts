@@ -61,6 +61,8 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public bool PlayEffectAtMidpoint { get; set; }
 
+        public Action MidpointCallback { get; set; }
+
     }
 
     /// <summary>
@@ -123,6 +125,8 @@ namespace CommonCore.TurnBasedBattleSystem
     //effectively a view model
     public class ParticipantData
     {
+        public string Name { get; set; }
+
         public CharacterModel CharacterModel { get; set; }
         public BattleParticipant BattleParticipant { get; set; }
 
@@ -257,6 +261,13 @@ namespace CommonCore.TurnBasedBattleSystem
         ExactPower
     }
 
+    public enum MoveAlreadyDeadAction
+    {
+        Continue,
+        Retarget,
+        Skip
+    }
+
     public enum MoveMotionHint
     {
         None = 0,
@@ -302,6 +313,8 @@ namespace CommonCore.TurnBasedBattleSystem
 
         [JsonProperty]
         public MoveDamageCalculation DamageCalculation { get; set; }
+        [JsonProperty]
+        public MoveAlreadyDeadAction AlreadyDeadAction { get; set; }
 
         //presentation data (stringly typed garbage)
         [JsonProperty]

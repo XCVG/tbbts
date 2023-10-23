@@ -239,7 +239,8 @@ namespace CommonCore.TurnBasedBattleSystem
     {
         Single,
         SameTarget,
-        RandomTarget
+        RandomTarget,
+        DifferentTarget
     }
 
     public enum MoveFlag
@@ -251,7 +252,9 @@ namespace CommonCore.TurnBasedBattleSystem
         UseSpecialDefense, //uses special defense OF TARGET to calculate damage ON TARGET
         IsHealingMove,
         IsGuardMove,
-        PlayEffectAtMidpoint
+        PlayEffectAtMidpoint,
+        RepeatOnDeadTarget,
+        ApplyGroupAttackOnDeadTargets
     }
 
     public enum MoveDamageCalculation

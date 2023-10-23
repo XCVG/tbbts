@@ -115,45 +115,21 @@ namespace CommonCore.TurnBasedBattleSystem
             var attackingBattler = Context.SceneController.Battlers[AttackingParticipant];
 
             //get defending participant, if applicable
-            ParticipantData defendingParticipant = null;
+            IList<TargetData> targets = new List<TargetData>();
             if (!string.IsNullOrEmpty(DefendingParticipant) && (MoveDefinition.Target == MoveTarget.SingleAlly || MoveDefinition.Target == MoveTarget.SingleEnemy || MoveDefinition.Target == MoveTarget.SingleParticipant))
             {
                 //WIP if defender is already dead handling
-                defendingParticipant = Context.SceneController.ParticipantData.GetOrDefault(DefendingParticipant);
+                //TODO move this into a method
+                var defendingParticipant = Context.SceneController.ParticipantData.GetOrDefault(DefendingParticipant);
                 if(defendingParticipant == null || defendingParticipant.Health <= 0)
                 {
                     if(MoveDefinition.AlreadyDeadAction == MoveAlreadyDeadAction.Retarget)
                     {
                         Debug.Log("Retargeting SimpleAttackAction because defending participant is dead");
                         // find a new target based on targeting rules
-                        List<KeyValuePair<string, ParticipantData>> targetableEnemies;
-                        if (MoveDefinition.Target == MoveTarget.SingleEnemy)
-                        {
-                            BattleParticipant.ControlledByType enemyControlledByType = attackingParticipant.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player ? BattleParticipant.ControlledByType.AI : BattleParticipant.ControlledByType.Player;
+                        List<KeyValuePair<string, ParticipantData>> targetableEnemies = GetTargetableEnemySet(attackingParticipant).ToList();
 
-                            targetableEnemies = Context.SceneController.ParticipantData
-                                       .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == enemyControlledByType)
-                                       .Where(kvp => kvp.Value.Health > 0)
-                                       .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
-                                       .ToList();
-                        }
-                        else if (MoveDefinition.Target == MoveTarget.SingleAlly)
-                        {
-                            targetableEnemies = Context.SceneController.ParticipantData
-                                       .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == attackingParticipant.BattleParticipant.ControlledBy)
-                                       .Where(kvp => kvp.Value.Health > 0)
-                                       .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
-                                       .ToList();
-                        }
-                        else
-                        {
-                            targetableEnemies = Context.SceneController.ParticipantData
-                                       .Where(kvp => kvp.Value.Health > 0)
-                                       .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
-                                       .ToList();
-                        }
-                        
-                        if(targetableEnemies.Count == 0)
+                        if (targetableEnemies.Count == 0)
                         {
                             Debug.Log("Skipping SimpleAttackAction because no participant could be found to retarget to");
 
@@ -163,6 +139,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
                         var selected = targetableEnemies[UnityEngine.Random.Range(0, targetableEnemies.Count)];
                         defendingParticipant = selected.Value;
+                        targets.Add(CreateTargetData(defendingParticipant));
                         Debug.Log("Retargeted SimpleAttackAction to" + selected.Key);
 
                     }
@@ -175,13 +152,12 @@ namespace CommonCore.TurnBasedBattleSystem
                     }
                 }
             }
-            else if(MoveDefinition.Target == MoveTarget.Self)
+            //TODO handling for groups of targets
+            //if ApplyGroupAttackOnDeadTargets is not set and all targets are already dead, skip
+            else if (MoveDefinition.Target == MoveTarget.Self)
             {
-                defendingParticipant = attackingParticipant;
+                targets.Add(CreateTargetData(attackingParticipant));
             }
-
-            //TODO calculate damage (noting that this may be healing)
-            //ie call TBBSUtils.CalculateDamage for each victim
 
             //show message based on lookup from term to TBBS_TERMS
             string term = Sub.Replace(string.IsNullOrEmpty(MoveDefinition.Term) ? "attacks" : MoveDefinition.Term, "TBBS_TERMS");
@@ -190,33 +166,78 @@ namespace CommonCore.TurnBasedBattleSystem
             Context.UIController.HideOverlay();
             Context.UIController.ShowMessage(message);
 
-            //TODO will need to handle repeats eventually but will get to that later
-
             //use mana points if applicable
             attackingParticipant.Magic -= MoveDefinition.MagicUse;
 
-            //WIP signal battler to play animation (calculate target points based on move definition options here)
-            bool playEffectAtMidpoint = MoveDefinition.HasFlag(MoveFlag.PlayEffectAtMidpoint);
-            bool animDone = false;
-            attackingBattler.PlayAnimation(MoveDefinition.Animation, () => { animDone = true; }, new BattlerAnimationArgs()
+            int numRepeats = 1; //TODO get this from 
+            for(int i = 0; i < numRepeats; i++)
             {
-                AnimationTimescale = MoveDefinition.AnimationTimescale,
-                InitialEffect = MoveDefinition.AttackEffect,
-                LateEffect = playEffectAtMidpoint ? MoveDefinition.HitEffect : "",
-                SoundEffect = MoveDefinition.SoundEffect,
-                PlayEffectAtMidpoint = playEffectAtMidpoint
+                //TODO will need to handle repeats eventually but will get to that later
+                //repeats will happen approximately here, after target is selected but before damage is calculated                
 
-            });
-            while (!animDone)
+                if(targets.Count == 0 || (!MoveDefinition.HasFlag(MoveFlag.ApplyGroupAttackOnDeadTargets) && !targets.Any(t => t.IsAlive)))
+                {
+                    Debug.Log($"Aborting on {i} repeat because all targets in group are all dead or nonexistent!");
+                    break;
+                }
+
+                if(i > 0 && (MoveDefinition.Target == MoveTarget.Self || MoveDefinition.Target == MoveTarget.SingleAlly || MoveDefinition.Target == MoveTarget.SingleEnemy || MoveDefinition.Target == MoveTarget.SingleParticipant) && (targets.Count == 0 || !targets[0].IsAlive) && !MoveDefinition.HasFlag(MoveFlag.RepeatOnDeadTarget))
+                {
+                    Debug.Log($"Aborting on {i} repeat because target is dead!");
+                    break;
+                }
+
+                //TODO calculate damage (noting that this may be healing)
+                //ie call TBBSUtils.CalculateDamage for each victim
+                //generate for all, even if dead
+
+                //WIP signal battler to play animation (calculate target points based on move definition options here)
+                bool playEffectAtMidpoint = MoveDefinition.HasFlag(MoveFlag.PlayEffectAtMidpoint);
+                bool animDone = false;
+                attackingBattler.PlayAnimation(MoveDefinition.Animation, () => { animDone = true; }, new BattlerAnimationArgs()
+                {
+                    AnimationTimescale = MoveDefinition.AnimationTimescale,
+                    InitialEffect = MoveDefinition.AttackEffect,
+                    LateEffect = playEffectAtMidpoint ? MoveDefinition.HitEffect : "",
+                    SoundEffect = MoveDefinition.SoundEffect,
+                    PlayEffectAtMidpoint = playEffectAtMidpoint
+
+                });
+                while (!animDone) //wait for battler animation to finish
+                    yield return null;
+
+                foreach(var target in targets)
+                {
+                    if (!target.IsAlive && !MoveDefinition.HasFlag(MoveFlag.ApplyGroupAttackOnDeadTargets))
+                        continue;
+
+                    //TODO apply damage (noting that it may affect multiple participants and/or target participant may be null)
+                    //make sure to check ApplyGroupAttackOnDeadTargets and skip dead targets
+
+                    //TODO hit/react animation should probably move here and be handled by a call to defending battler(s)
+
+                    //TODO end message (x took y damage) ?
+                }
+
+                // need to handle MoveRepeatType and MoveAlreadyDeadAction after all (only for single-target moves!)
+                if (numRepeats > 1 && (MoveDefinition.RepeatType == MoveRepeatType.RandomTarget || MoveDefinition.RepeatType == MoveRepeatType.DifferentTarget || (MoveDefinition.AlreadyDeadAction == MoveAlreadyDeadAction.Retarget && MoveDefinition.RepeatType == MoveRepeatType.SameTarget && !targets[0].IsAlive)) && MoveDefinition.Target == MoveTarget.SingleAlly || MoveDefinition.Target == MoveTarget.SingleEnemy || MoveDefinition.Target == MoveTarget.SingleParticipant)
+                {
+                    var targetableEnemies = GetTargetableEnemySet(attackingParticipant).ToList();
+
+                    if(MoveDefinition.RepeatType == MoveRepeatType.DifferentTarget && targetableEnemies.Count > 1)
+                    {
+                        int lastTargetIndex = targetableEnemies.FindIndex(kvp => targets[0].Participant.Name == kvp.Key);
+                        if (lastTargetIndex >= 0)
+                            targetableEnemies.RemoveAt(lastTargetIndex);
+                    }
+
+                    var selected = targetableEnemies[UnityEngine.Random.Range(0, targetableEnemies.Count)];
+                    targets[0] = CreateTargetData(selected.Value);
+                    Debug.Log("Retargeted SimpleAttackAction to" + selected.Key + " for repeat");
+                }
+
                 yield return null;
-
-            //TODO wait for battler animation to finish
-
-            //TODO apply damage (noting that it may affect multiple participants and/or target participant may be null)
-
-            //TODO hit/react animation should probably move here and be handled by a call to defending battler(s)
-
-            //TODO end message (x took y damage) ?
+            }
 
             yield return null;
 
@@ -224,6 +245,59 @@ namespace CommonCore.TurnBasedBattleSystem
             Context.UIController.ShowOverlay();
             Context.UIController.RepaintOverlay();            
             Context.CompleteCallback();
+        }
+
+        private TargetData CreateTargetData(string participantName)
+        {
+            var participant = Context.SceneController.ParticipantData.GetOrDefault(participantName);
+            var battler = Context.SceneController.Battlers[participantName];
+
+            return new TargetData() { Battler = battler, Participant = participant };
+        }
+
+        private TargetData CreateTargetData(ParticipantData participant)
+        {
+            var battler = Context.SceneController.Battlers[participant.Name];
+
+            return new TargetData() { Battler = battler, Participant = participant };
+        }
+
+        private IEnumerable<KeyValuePair<string, ParticipantData>> GetTargetableEnemySet(ParticipantData attackingParticipant)
+        {
+            IEnumerable<KeyValuePair<string, ParticipantData>> targetableEnemies;
+            if (MoveDefinition.Target == MoveTarget.SingleEnemy)
+            {
+                BattleParticipant.ControlledByType enemyControlledByType = attackingParticipant.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player ? BattleParticipant.ControlledByType.AI : BattleParticipant.ControlledByType.Player;
+
+                targetableEnemies = Context.SceneController.ParticipantData
+                           .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == enemyControlledByType)
+                           .Where(kvp => kvp.Value.Health > 0)
+                           .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting));
+            }
+            else if (MoveDefinition.Target == MoveTarget.SingleAlly)
+            {
+                targetableEnemies = Context.SceneController.ParticipantData
+                           .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == attackingParticipant.BattleParticipant.ControlledBy)
+                           .Where(kvp => kvp.Value.Health > 0)
+                           .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting));
+            }
+            else
+            {
+                targetableEnemies = Context.SceneController.ParticipantData
+                           .Where(kvp => kvp.Value.Health > 0)
+                           .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting));
+            }
+
+            return targetableEnemies;
+        }
+
+        private class TargetData
+        {
+            public ParticipantData Participant { get; set; }
+            public BattlerController Battler { get; set; }
+            public float PendingDamage { get; set; }
+            public bool IsAlive => Participant.Health > 0;
+            
         }
     }
 

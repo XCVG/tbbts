@@ -139,7 +139,6 @@ namespace CommonCore.TurnBasedBattleSystem
 
                         var selected = targetableEnemies[UnityEngine.Random.Range(0, targetableEnemies.Count)];
                         defendingParticipant = selected.Value;
-                        targets.Add(CreateTargetData(defendingParticipant));
                         Debug.Log("Retargeted SimpleAttackAction to" + selected.Key);
 
                     }
@@ -151,9 +150,16 @@ namespace CommonCore.TurnBasedBattleSystem
                         yield break;
                     }
                 }
+                targets.Add(CreateTargetData(defendingParticipant));
             }
-            //TODO handling for groups of targets
-            //if ApplyGroupAttackOnDeadTargets is not set and all targets are already dead, skip
+            
+            else if (MoveDefinition.Target == MoveTarget.AllEnemies || MoveDefinition.Target == MoveTarget.AllAllies || MoveDefinition.Target == MoveTarget.AllParticipants)
+            {
+                //TODO handling for groups of targets
+                //if ApplyGroupAttackOnDeadTargets is not set and all targets are already dead, skip
+                //also consider ApplyGroupAttackOnNotarget flag
+                //GetTargetableEnemySet
+            }
             else if (MoveDefinition.Target == MoveTarget.Self)
             {
                 targets.Add(CreateTargetData(attackingParticipant));
@@ -262,31 +268,31 @@ namespace CommonCore.TurnBasedBattleSystem
             return new TargetData() { Battler = battler, Participant = participant };
         }
 
-        private IEnumerable<KeyValuePair<string, ParticipantData>> GetTargetableEnemySet(ParticipantData attackingParticipant)
+        private IEnumerable<KeyValuePair<string, ParticipantData>> GetTargetableEnemySet(ParticipantData attackingParticipant, bool mustBeAlive = true, bool mustBeTargetable = true)
         {
             IEnumerable<KeyValuePair<string, ParticipantData>> targetableEnemies;
-            if (MoveDefinition.Target == MoveTarget.SingleEnemy)
+            if (MoveDefinition.Target == MoveTarget.SingleEnemy || MoveDefinition.Target == MoveTarget.AllEnemies)
             {
                 BattleParticipant.ControlledByType enemyControlledByType = attackingParticipant.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player ? BattleParticipant.ControlledByType.AI : BattleParticipant.ControlledByType.Player;
 
                 targetableEnemies = Context.SceneController.ParticipantData
-                           .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == enemyControlledByType)
-                           .Where(kvp => kvp.Value.Health > 0)
-                           .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting));
+                           .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == enemyControlledByType);
             }
-            else if (MoveDefinition.Target == MoveTarget.SingleAlly)
+            else if (MoveDefinition.Target == MoveTarget.SingleAlly || MoveDefinition.Target == MoveTarget.AllAllies)
             {
                 targetableEnemies = Context.SceneController.ParticipantData
-                           .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == attackingParticipant.BattleParticipant.ControlledBy)
-                           .Where(kvp => kvp.Value.Health > 0)
-                           .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting));
+                           .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == attackingParticipant.BattleParticipant.ControlledBy);
             }
             else
             {
-                targetableEnemies = Context.SceneController.ParticipantData
-                           .Where(kvp => kvp.Value.Health > 0)
-                           .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting));
+                targetableEnemies = Context.SceneController.ParticipantData;
             }
+
+            if (mustBeAlive)
+                targetableEnemies = targetableEnemies.Where(kvp => kvp.Value.Health > 0);
+
+            if (mustBeTargetable)
+                targetableEnemies = targetableEnemies.Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting));
 
             return targetableEnemies;
         }

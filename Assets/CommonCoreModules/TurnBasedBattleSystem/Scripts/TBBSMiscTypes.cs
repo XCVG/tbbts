@@ -1,7 +1,9 @@
 using CommonCore.Audio;
 using CommonCore.RpgGame.Rpg;
 using CommonCore.RpgGame.State;
+using CommonCore.World;
 using Newtonsoft.Json;
+using PseudoExtensibleEnum;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -254,7 +256,8 @@ namespace CommonCore.TurnBasedBattleSystem
         IsGuardMove,
         PlayEffectAtMidpoint,
         RepeatOnDeadTarget,
-        ApplyGroupAttackOnDeadTargets
+        ApplyGroupAttackOnDeadTargets,
+        ApplyGroupAttackOnNotarget
     }
 
     public enum MoveDamageCalculation
@@ -310,6 +313,8 @@ namespace CommonCore.TurnBasedBattleSystem
         public float Speed { get; set; }
         [JsonProperty]
         public float MagicUse { get; set; }
+        [JsonProperty, JsonConverter(typeof(PxEnumConverter), typeof(DefaultDamageTypes))]
+        public int DamageType { get; set; }
 
         [JsonProperty]
         public IList<MoveFlag> Flags { get; set; }

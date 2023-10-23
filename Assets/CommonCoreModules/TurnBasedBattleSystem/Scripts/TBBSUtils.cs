@@ -186,13 +186,17 @@ namespace CommonCore.TurnBasedBattleSystem
             {
                 case MoveDamageCalculation.None:
                     return 0;
+                case MoveDamageCalculation.IgnoreDR:
                 case MoveDamageCalculation.Normal:
                     {
-                        float attack = attacker.Stats[TBBSStatType.Attack];
-                        float defence = defender.Stats[TBBSStatType.Defence];
+                        float attack = attacker.Stats[move.HasFlag(MoveFlag.UseSpecialAttack) ? TBBSStatType.SpecialAttack : TBBSStatType.Attack];
+                        float defence = defender.Stats[move.HasFlag(MoveFlag.UseSpecialDefense) ? TBBSStatType.SpecialDefence : TBBSStatType.Defence];
 
-                        float defenceFromDR = defender.DamageResistance.GetOrDefault(move.DamageType, 0);
-                        defence += defenceFromDR;
+                        if(move.DamageCalculation != MoveDamageCalculation.IgnoreDR)
+                        {
+                            float defenceFromDR = defender.DamageResistance.GetOrDefault(move.DamageType, 0);
+                            defence += defenceFromDR;
+                        }
 
                         float power = move.Power * (1 + UnityEngine.Random.Range(-move.Randomness, move.Randomness));
                         float damage = (power * attack * 4) - (defence * 2);

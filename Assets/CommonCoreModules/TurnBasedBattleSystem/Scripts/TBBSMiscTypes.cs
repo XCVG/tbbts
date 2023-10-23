@@ -267,6 +267,7 @@ namespace CommonCore.TurnBasedBattleSystem
     {
         None,
         Normal, //max(1, 4 * power * atk - (guarding ? 4 : 2) * def)
+        IgnoreDR,
         ExactPower
     }
 

@@ -300,6 +300,16 @@ namespace CommonCore.TurnBasedBattleSystem
             //TODO
         }
 
+        public void HideUI()
+        {
+            UICanvas.enabled = false;
+        }
+
+        public void ShowUI()
+        {
+            UICanvas.enabled = true;
+        }
+
         private BattlerController GetBattlerForParticipant(string name)
         {
             if (SceneController.Battlers.TryGetValue(name, out var battlerController))

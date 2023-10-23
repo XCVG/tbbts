@@ -154,6 +154,7 @@ namespace CommonCore.TurnBasedBattleSystem
         public CharacterMoveset MoveSet { get; set; } //should probably be private/protected set
         public ParticipantTargetingPolicy TargetingPolicy { get; set; }
         public IReadOnlyDictionary<TBBSStatType, float> Stats { get; set; } //should probably be private/protected set?
+        public IReadOnlyDictionary<int, float> DamageResistance { get; set; }
 
         public List<Condition> Conditions { get; set; } = new List<Condition>();
 
@@ -187,6 +188,8 @@ namespace CommonCore.TurnBasedBattleSystem
                 }                
             }
             Stats = stats;
+
+            DamageResistance = new Dictionary<int, float>(CharacterModel.DerivedStats.DamageResistance);
 
             Conditions.AddRange(CharacterModel.Conditions);
 

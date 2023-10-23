@@ -2,6 +2,7 @@ using CommonCore.StringSub;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 
 namespace CommonCore.TurnBasedBattleSystem
@@ -151,14 +152,21 @@ namespace CommonCore.TurnBasedBattleSystem
                     }
                 }
                 targets.Add(CreateTargetData(defendingParticipant));
-            }
-            
+            }            
             else if (MoveDefinition.Target == MoveTarget.AllEnemies || MoveDefinition.Target == MoveTarget.AllAllies || MoveDefinition.Target == MoveTarget.AllParticipants)
-            {
-                //TODO handling for groups of targets
-                //if ApplyGroupAttackOnDeadTargets is not set and all targets are already dead, skip
-                //also consider ApplyGroupAttackOnNotarget flag
-                //GetTargetableEnemySet
+            {                
+                var defendingParticipants = GetTargetableEnemySet(attackingParticipant, !MoveDefinition.HasFlag(MoveFlag.ApplyGroupAttackOnDeadTargets), !MoveDefinition.HasFlag(MoveFlag.ApplyGroupAttackOnNotarget));
+                foreach(var defendingParticipant in defendingParticipants)
+                {
+                    targets.Add(CreateTargetData(defendingParticipant.Value));
+                }
+
+                if(targets.Count == 0)
+                {
+                    Debug.Log("Skipping SimpleAttackAction because all possible participants in group are dead or untargetable");
+                    Context.CompleteCallback();
+                    yield break;
+                }
             }
             else if (MoveDefinition.Target == MoveTarget.Self)
             {
@@ -193,9 +201,13 @@ namespace CommonCore.TurnBasedBattleSystem
                     break;
                 }
 
-                //TODO calculate damage (noting that this may be healing)
-                //ie call TBBSUtils.CalculateDamage for each victim
-                //generate for all, even if dead
+                //calculate damage, even for dead targets
+                foreach (var target in targets)
+                {
+                    target.PendingDamage = TBBSUtils.CalculateDamage(MoveDefinition, attackingParticipant, target.Participant);
+                    if (MoveDefinition.HasFlag(MoveFlag.IsHealingMove))
+                        target.PendingDamage = Mathf.Abs(target.PendingDamage) * -1;
+                }
 
                 //WIP signal battler to play animation (calculate target points based on move definition options here)
                 bool playEffectAtMidpoint = MoveDefinition.HasFlag(MoveFlag.PlayEffectAtMidpoint);
@@ -212,18 +224,24 @@ namespace CommonCore.TurnBasedBattleSystem
                 while (!animDone) //wait for battler animation to finish
                     yield return null;
 
+                StringBuilder endMessage = new StringBuilder();
                 foreach(var target in targets)
                 {
                     if (!target.IsAlive && !MoveDefinition.HasFlag(MoveFlag.ApplyGroupAttackOnDeadTargets))
                         continue;
 
-                    //TODO apply damage (noting that it may affect multiple participants and/or target participant may be null)
-                    //make sure to check ApplyGroupAttackOnDeadTargets and skip dead targets
+                    //apply damage
+                    target.Participant.Health -= target.PendingDamage;
 
                     //TODO hit/react animation should probably move here and be handled by a call to defending battler(s)
 
-                    //TODO end message (x took y damage) ?
+                    //end message (x took y damage) ?
+                    endMessage.AppendFormat("{0} took {1:F0} damage\n", target.Participant.DisplayName, target.PendingDamage);
+
+                    target.PendingDamage = 0;
                 }
+
+                //TODO display end message and wait for (all?) hit anim to complete
 
                 // need to handle MoveRepeatType and MoveAlreadyDeadAction after all (only for single-target moves!)
                 if (numRepeats > 1 && (MoveDefinition.RepeatType == MoveRepeatType.RandomTarget || MoveDefinition.RepeatType == MoveRepeatType.DifferentTarget || (MoveDefinition.AlreadyDeadAction == MoveAlreadyDeadAction.Retarget && MoveDefinition.RepeatType == MoveRepeatType.SameTarget && !targets[0].IsAlive)) && MoveDefinition.Target == MoveTarget.SingleAlly || MoveDefinition.Target == MoveTarget.SingleEnemy || MoveDefinition.Target == MoveTarget.SingleParticipant)

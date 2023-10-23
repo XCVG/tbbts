@@ -136,7 +136,8 @@ namespace CommonCore.TurnBasedBattleSystem
                 Name = "Attack",
                 Animation = "Attack",
                 HitEffect = "DefaultHit",
-                Power = 20,
+                Power = 1,
+                Randomness = 0.2f,
                 Speed = 0,
                 DamageCalculation = MoveDamageCalculation.Normal,
                 Target = MoveTarget.SingleEnemy,
@@ -181,7 +182,26 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public static float CalculateDamage(MoveDefinition move, ParticipantData attacker, ParticipantData defender)
         {
-            //TODO ALL the complexity!
+            switch (move.DamageCalculation)
+            {
+                case MoveDamageCalculation.None:
+                    return 0;
+                case MoveDamageCalculation.Normal:
+                    {
+                        float attack = attacker.Stats[TBBSStatType.Attack];
+                        float defence = defender.Stats[TBBSStatType.Defence];
+
+                        float defenceFromDR = defender.DamageResistance.GetOrDefault(move.DamageType, 0);
+                        defence += defenceFromDR;
+
+                        float power = move.Power * (1 + UnityEngine.Random.Range(-move.Randomness, move.Randomness));
+                        float damage = (power * attack * 4) - (defence * 2);
+
+                        return Mathf.Max(1, damage);
+                    }
+                case MoveDamageCalculation.ExactPower:
+                    return move.Power;                   
+            }
 
             throw new NotImplementedException();
         }

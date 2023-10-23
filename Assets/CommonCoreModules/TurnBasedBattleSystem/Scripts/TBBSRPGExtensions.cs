@@ -1,4 +1,5 @@
 using CommonCore.RpgGame.Rpg;
+using CommonCore.World;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PseudoExtensibleEnum;

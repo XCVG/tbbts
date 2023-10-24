@@ -26,6 +26,13 @@ namespace CommonCore.TurnBasedBattleSystem
             //nop
         }
 
+        protected IEnumerator CoBattlerDeathSequence(ParticipantData participant, BattlerController battler)
+        {
+            Debug.LogWarning($"{participant.Name} death sequence (not implemented)");
+            //TODO
+            yield break;
+        }
+
     }
 
     public class FleeAction : BattleAction
@@ -211,6 +218,26 @@ namespace CommonCore.TurnBasedBattleSystem
 
                 //WIP signal battler to play animation (calculate target points based on move definition options here)
                 bool playEffectAtMidpoint = MoveDefinition.HasFlag(MoveFlag.PlayEffectAtMidpoint);
+                bool animateMotion = false;
+                Vector3 animTargetPos = Vector3.zero;
+                switch (MoveDefinition.MotionHint)
+                {
+                    //utilize GetAttackOffsetVector (maybe different for hittarget and jumphittarget) 
+                    case MoveMotionHint.JumpHitTarget:
+                    case MoveMotionHint.HitTarget:
+                        //we may eventually give options for group attack target
+                        if(targets.Count >= 1)
+                        {
+                            animTargetPos = targets[0].Battler.GetTargetPoint() + (targets[0].Battler.transform.position - targets[0].Battler.GetTargetPoint());
+                            animTargetPos += Vector3.Scale(attackingBattler.GetAttackOffsetVector(), new Vector3(1, 0, 1)); 
+                            animateMotion = true;
+                        }
+                        break;
+                    case MoveMotionHint.JumpInPlace:
+                        animTargetPos = attackingBattler.transform.position + (Vector3.up * 1f);
+                        animateMotion = true;
+                        break;
+                }
                 bool animDone = false;
                 attackingBattler.PlayAnimation(MoveDefinition.Animation, () => { animDone = true; }, new BattlerAnimationArgs()
                 {
@@ -218,20 +245,31 @@ namespace CommonCore.TurnBasedBattleSystem
                     InitialEffect = MoveDefinition.AttackEffect,
                     LateEffect = playEffectAtMidpoint ? MoveDefinition.HitEffect : "",
                     SoundEffect = MoveDefinition.SoundEffect,
-                    PlayEffectAtMidpoint = playEffectAtMidpoint
-
+                    PlayEffectAtMidpoint = playEffectAtMidpoint,
+                    AnimateMotion = animateMotion,
+                    TargetPosition = animTargetPos
+                    //TODO pass flag for JumpHitTarget
                 });
                 while (!animDone) //wait for battler animation to finish
                     yield return null;
 
                 StringBuilder endMessage = new StringBuilder();
+                int startedAnimationCount = 0, completedAnimationCount = 0;
                 foreach(var target in targets)
                 {
                     if (!target.IsAlive && !MoveDefinition.HasFlag(MoveFlag.ApplyGroupAttackOnDeadTargets))
                         continue;
 
+                    float previousHealth = target.Participant.Health;
+
                     //apply damage
                     target.Participant.Health -= target.PendingDamage;
+
+                    if(previousHealth > 0 && target.Participant.Health <= 0)
+                    {
+                        target.KilledDuringAction = true;
+                        target.PendingDeathAnimation = true;
+                    }
 
                     //TODO hit/react animation should probably move here and be handled by a call to defending battler(s)
 
@@ -241,7 +279,26 @@ namespace CommonCore.TurnBasedBattleSystem
                     target.PendingDamage = 0;
                 }
 
-                //TODO display end message and wait for (all?) hit anim to complete
+                //display end message and wait for (all?) hit anim to complete
+                //TODO should we show overlay here?
+                Context.UIController.ShowMessage(endMessage.ToString());
+
+                while (startedAnimationCount > completedAnimationCount)
+                    yield return null;
+
+                //TODO probably fixed or variable hold time for effects as well
+
+                //handle dead participants
+                foreach(var target in targets)
+                {
+                    if(target.PendingDeathAnimation)
+                    {
+                        yield return CoBattlerDeathSequence(target.Participant, target.Battler);
+                        target.PendingDeathAnimation = false;
+                    }
+                }
+
+                Context.UIController.ClearMessage();
 
                 // need to handle MoveRepeatType and MoveAlreadyDeadAction after all (only for single-target moves!)
                 if (numRepeats > 1 && (MoveDefinition.RepeatType == MoveRepeatType.RandomTarget || MoveDefinition.RepeatType == MoveRepeatType.DifferentTarget || (MoveDefinition.AlreadyDeadAction == MoveAlreadyDeadAction.Retarget && MoveDefinition.RepeatType == MoveRepeatType.SameTarget && !targets[0].IsAlive)) && MoveDefinition.Target == MoveTarget.SingleAlly || MoveDefinition.Target == MoveTarget.SingleEnemy || MoveDefinition.Target == MoveTarget.SingleParticipant)
@@ -319,8 +376,11 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             public ParticipantData Participant { get; set; }
             public BattlerController Battler { get; set; }
-            public float PendingDamage { get; set; }
             public bool IsAlive => Participant.Health > 0;
+
+            public float PendingDamage { get; set; }            
+            public bool PendingDeathAnimation { get; set; }
+            public bool KilledDuringAction { get; set; }
             
         }
     }

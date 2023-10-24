@@ -24,5 +24,6 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public abstract Vector3 GetOverlayPoint();
         public abstract Vector3 GetTargetPoint();
+        public abstract Vector3 GetAttackOffsetVector();
     }    
 }

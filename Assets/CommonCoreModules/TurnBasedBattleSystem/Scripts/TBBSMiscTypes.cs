@@ -51,7 +51,6 @@ namespace CommonCore.TurnBasedBattleSystem
     public class BattlerAnimationArgs
     {
         public Vector3 TargetPosition { get; set; }
-        public Vector3 HitEffectPosition { get; set; }
 
         //public string Animation { get; set; }
         public float AnimationTimescale { get; set; } = 1f;
@@ -61,6 +60,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public string SoundEffect { get; set; }
 
+        public bool AnimateMotion { get; set; }
         public bool PlayEffectAtMidpoint { get; set; }
 
         public Action MidpointCallback { get; set; }
@@ -282,7 +282,8 @@ namespace CommonCore.TurnBasedBattleSystem
     {
         None = 0,
         HitTarget,
-        JumpInPlace
+        JumpInPlace,
+        JumpHitTarget
     }
 
     public enum MoveHitEffectPositionHint

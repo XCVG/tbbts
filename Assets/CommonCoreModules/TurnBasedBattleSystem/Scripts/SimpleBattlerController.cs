@@ -19,6 +19,7 @@ namespace CommonCore.TurnBasedBattleSystem
         [Header("References")]
         public Transform OverlayPoint;
         public Transform TargetPoint;
+        public Transform AttackPoint;
         public Animator Animator;
 
         private AudioPlayer AudioPlayer;
@@ -61,6 +62,14 @@ namespace CommonCore.TurnBasedBattleSystem
             return TargetPoint.position;
         }
 
+        public override Vector3 GetAttackOffsetVector()
+        {
+            if(AttackPoint != null)
+                return transform.position - AttackPoint.position;
+
+            return Vector3.zero;
+        }
+
 
         private IEnumerator CoDoAnimation(string animation, Action completeCallback, BattlerAnimationArgs args)
         {
@@ -101,12 +110,47 @@ namespace CommonCore.TurnBasedBattleSystem
             Animator.speed = actualTimescale;
             Animator.Play(animationDefinition.AnimationName);
 
-            //TODO do motion if applicable
-            //TODO spawn late effect if applicable (play at midpoint)
-            //TODO midpoint callback if applicable 
-            args.MidpointCallback?.Invoke();
+            //do motion if applicable         
+            //in this case maybe-spawn effect at midpoint and execute midpoint callback
+            if(args.AnimateMotion)
+            {
+                Vector3 originalPosition = transform.position;
 
-            yield return new WaitForSecondsEx(actualDuration, false, LockPause.PauseLockType.AllowCutscene);
+                float halfDuration = actualDuration / 2f;
+
+                yield return null;
+                for(float elapsed = 0; elapsed < halfDuration; elapsed += Time.deltaTime)
+                {
+                    float t = elapsed / halfDuration;
+                    transform.position = Vector3.Lerp(originalPosition, args.TargetPosition, t);
+
+                    yield return null;
+                }
+
+                transform.position = args.TargetPosition;
+
+                args.MidpointCallback?.Invoke();
+                if (!string.IsNullOrEmpty(args.LateEffect) && args.PlayEffectAtMidpoint)
+                {
+                    WorldUtils.SpawnEffect(args.LateEffect, GetTargetPoint(), Quaternion.identity, null, true);
+                }
+
+                yield return null;
+
+                for (float elapsed = 0; elapsed < halfDuration; elapsed += Time.deltaTime)
+                {
+                    float t = elapsed / halfDuration;
+                    transform.position = Vector3.Lerp(args.TargetPosition, originalPosition, t);
+
+                    yield return null;
+                }
+
+                transform.position = originalPosition;
+            }
+            else
+            {
+                yield return new WaitForSecondsEx(actualDuration, false, LockPause.PauseLockType.AllowCutscene);
+            }            
 
             yield return null;
 

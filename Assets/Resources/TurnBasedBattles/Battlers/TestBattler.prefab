@@ -31,6 +31,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 7691734215016971493}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &3352188404368190526
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4212724138034175502}
+  m_Layer: 0
+  m_Name: AttackPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4212724138034175502
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3352188404368190526}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.426, z: 0.787}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7691734215016971493}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4795005215721993230
 GameObject:
   m_ObjectHideFlags: 0
@@ -96,6 +127,7 @@ Transform:
   - {fileID: 7691734215814182646}
   - {fileID: 5749025712654227982}
   - {fileID: 7729359709232515958}
+  - {fileID: 4212724138034175502}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7691734215016971492
@@ -119,9 +151,11 @@ MonoBehaviour:
     AnimationName: punch
     Duration: 2
     HoldTime: 2
+  IdleAnimationTimescale: 1
   IdleAnimation: idle
   OverlayPoint: {fileID: 5749025712654227982}
   TargetPoint: {fileID: 7729359709232515958}
+  AttackPoint: {fileID: 4212724138034175502}
   Animator: {fileID: 7691734214927466564}
 --- !u!1 &7691734215814182647
 GameObject:

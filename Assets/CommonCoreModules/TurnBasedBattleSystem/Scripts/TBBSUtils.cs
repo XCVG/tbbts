@@ -142,7 +142,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 DamageCalculation = MoveDamageCalculation.Normal,
                 Target = MoveTarget.SingleEnemy,
                 RepeatType = MoveRepeatType.Single,
-                Flags = new List<MoveFlag>(),
+                Flags = new List<MoveFlag>() { },
                 MotionHint = MoveMotionHint.HitTarget,
                 AlreadyDeadAction = MoveAlreadyDeadAction.Retarget
             });

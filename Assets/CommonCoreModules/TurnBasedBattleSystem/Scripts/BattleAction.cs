@@ -1,4 +1,5 @@
 using CommonCore.StringSub;
+using CommonCore.World;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -255,6 +256,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
                 StringBuilder endMessage = new StringBuilder();
                 int startedAnimationCount = 0, completedAnimationCount = 0;
+                List<TBBSEffectWaitScriptBase> effectsToWaitOn = new List<TBBSEffectWaitScriptBase>();
                 foreach(var target in targets)
                 {
                     if (!target.IsAlive && !MoveDefinition.HasFlag(MoveFlag.ApplyGroupAttackOnDeadTargets))
@@ -271,7 +273,31 @@ namespace CommonCore.TurnBasedBattleSystem
                         target.PendingDeathAnimation = true;
                     }
 
-                    //TODO hit/react animation should probably move here and be handled by a call to defending battler(s)
+                    //hit/react animation should probably move here and be handled by a call to defending battler(s)
+                    if(!MoveDefinition.HasFlag(MoveFlag.SkipPainAnimation))
+                    {
+                        startedAnimationCount++;
+                        target.Battler.PlayAnimation("Pain", () =>
+                        {
+                            completedAnimationCount++;
+                        }, new BattlerAnimationArgs()
+                        {
+                            AnimateMotion = false,
+                            AnimationTimescale = 1
+                        });
+                    }
+
+                    if(!string.IsNullOrEmpty(MoveDefinition.HitEffect))
+                    {
+                        var targetPos = target.Battler.GetTargetPoint();
+                        var effectGO = WorldUtils.SpawnEffect(MoveDefinition.HitEffect, targetPos, Quaternion.identity, null, true);
+                        if(effectGO != null)
+                        {
+                            var waitScript = effectGO.GetComponent<TBBSEffectWaitScriptBase>();
+                            if (waitScript != null)
+                                effectsToWaitOn.Add(waitScript);
+                        }                        
+                    }
 
                     //end message (x took y damage) ?
                     endMessage.AppendFormat("{0} took {1:F0} damage\n", target.Participant.DisplayName, target.PendingDamage);
@@ -286,7 +312,22 @@ namespace CommonCore.TurnBasedBattleSystem
                 while (startedAnimationCount > completedAnimationCount)
                     yield return null;
 
-                //TODO probably fixed or variable hold time for effects as well
+                //wait for effects if exists
+                bool allEffectsDone;
+                do
+                {
+                    allEffectsDone = false;
+                    int finishedEffects = 0;
+                    foreach(var effect in effectsToWaitOn)
+                    {
+                        if (effect == null || effect.IsDone)
+                            finishedEffects++;
+                    }
+
+                    allEffectsDone = finishedEffects == effectsToWaitOn.Count;
+
+                    yield return null;
+                } while (!allEffectsDone);
 
                 //handle dead participants
                 foreach(var target in targets)

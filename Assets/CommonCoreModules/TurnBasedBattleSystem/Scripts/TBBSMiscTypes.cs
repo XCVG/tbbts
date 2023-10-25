@@ -260,7 +260,8 @@ namespace CommonCore.TurnBasedBattleSystem
         PlayEffectAtMidpoint,
         RepeatOnDeadTarget,
         ApplyGroupAttackOnDeadTargets,
-        ApplyGroupAttackOnNotarget
+        ApplyGroupAttackOnNotarget,
+        SkipPainAnimation
     }
 
     public enum MoveDamageCalculation

@@ -101,6 +101,8 @@ namespace CommonCore.TurnBasedBattleSystem
     //and, like, y'know, implement it
     public class SimpleAttackAction : BaseAttackAction
     {
+        private const float MinMessageShowTime = 2f;
+
         public string Move { get; set; }
 
         private MoveDefinition MoveDefinition;
@@ -239,7 +241,8 @@ namespace CommonCore.TurnBasedBattleSystem
                         animateMotion = true;
                         break;
                 }
-                bool animDone = false;
+                bool animDone = false, mpAnimDone = false;
+                bool continueFromMidpoint = MoveDefinition.HasFlag(MoveFlag.ContinueAnimationFromMidpoint);
                 attackingBattler.PlayAnimation(MoveDefinition.Animation, () => { animDone = true; }, new BattlerAnimationArgs()
                 {
                     AnimationTimescale = MoveDefinition.AnimationTimescale,
@@ -248,10 +251,13 @@ namespace CommonCore.TurnBasedBattleSystem
                     SoundEffect = MoveDefinition.SoundEffect,
                     PlayEffectAtMidpoint = playEffectAtMidpoint,
                     AnimateMotion = animateMotion,
-                    TargetPosition = animTargetPos
-                    //TODO pass flag for JumpHitTarget
+                    TargetPosition = animTargetPos,
+                    MidpointCallback = () =>
+                    {
+                        mpAnimDone = true;
+                    }
                 });
-                while (!animDone) //wait for battler animation to finish
+                while (!(animDone || (mpAnimDone && continueFromMidpoint))) //wait for battler animation to finish
                     yield return null;
 
                 StringBuilder endMessage = new StringBuilder();
@@ -308,6 +314,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 //display end message and wait for (all?) hit anim to complete
                 //TODO should we show overlay here?
                 Context.UIController.ShowMessage(endMessage.ToString());
+                float messageInitialShowTime = Time.time;
 
                 while (startedAnimationCount > completedAnimationCount)
                     yield return null;
@@ -329,6 +336,13 @@ namespace CommonCore.TurnBasedBattleSystem
                     yield return null;
                 } while (!allEffectsDone);
 
+                //wait for attack animation to fully complete, if necessary
+                if(!animDone)
+                {
+                    while (!animDone)
+                        yield return null;
+                }
+
                 //handle dead participants
                 foreach(var target in targets)
                 {
@@ -337,6 +351,13 @@ namespace CommonCore.TurnBasedBattleSystem
                         yield return CoBattlerDeathSequence(target.Participant, target.Battler);
                         target.PendingDeathAnimation = false;
                     }
+                }
+
+                //mandatory waiting time
+                if(Time.time - messageInitialShowTime < MinMessageShowTime)
+                {
+                    while (Time.time - messageInitialShowTime < MinMessageShowTime)
+                        yield return null;
                 }
 
                 Context.UIController.ClearMessage();

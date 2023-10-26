@@ -150,7 +150,11 @@ MonoBehaviour:
   - Name: Attack
     AnimationName: punch
     Duration: 2
-    HoldTime: 2
+    HoldTime: 0
+  - Name: Pain
+    AnimationName: pain
+    Duration: 1
+    HoldTime: 0
   IdleAnimationTimescale: 1
   IdleAnimation: idle
   OverlayPoint: {fileID: 5749025712654227982}

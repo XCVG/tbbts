@@ -258,6 +258,7 @@ namespace CommonCore.TurnBasedBattleSystem
         IsHealingMove,
         IsGuardMove,
         PlayEffectAtMidpoint,
+        ContinueAnimationFromMidpoint,
         RepeatOnDeadTarget,
         ApplyGroupAttackOnDeadTargets,
         ApplyGroupAttackOnNotarget,

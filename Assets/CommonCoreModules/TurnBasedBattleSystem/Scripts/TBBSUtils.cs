@@ -198,6 +198,9 @@ namespace CommonCore.TurnBasedBattleSystem
                             defence += defenceFromDR;
                         }
 
+                        if (defender.Conditions.Any(c => c is TBBSGuardCondition))
+                            defence *= 2f;
+
                         float power = move.Power * (1 + UnityEngine.Random.Range(-move.Randomness, move.Randomness));
                         float damage = (power * attack * 4) - (defence * 2);
 

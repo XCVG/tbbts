@@ -298,6 +298,12 @@ namespace CommonCore.TurnBasedBattleSystem
         public void RepaintOverlay()
         {
             //TODO
+
+            //first check and make sure each participant has an overlay
+
+            //then for each overlay
+            //position over the battler
+            //and update the view
         }
 
         public void HideUI()

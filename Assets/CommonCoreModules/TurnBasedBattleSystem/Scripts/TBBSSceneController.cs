@@ -216,6 +216,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 battler.SetIdleAnimation("Idle", new BattlerAnimationArgs());
             }
 
+            UIController.RepaintOverlay();
             EnterPhase(BattlePhase.Decision);
         }
 

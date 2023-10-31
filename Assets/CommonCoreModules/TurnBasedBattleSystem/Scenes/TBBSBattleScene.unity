@@ -1620,6 +1620,7 @@ MonoBehaviour:
   PickTargetInstructionText: {fileID: 854368506}
   PickTargetButtonTemplate: {fileID: 630751378}
   OverlayContainer: {fileID: 1382525554}
+  OverlayTemplate: {fileID: 1143245687}
   EnableTheming: 1
   ThemeOverride: 
 --- !u!114 &750183209
@@ -2491,7 +2492,8 @@ MonoBehaviour:
   HealthSlider: {fileID: 1002497003}
   EnergySlider: {fileID: 43075379}
   ConditionsArea: {fileID: 1677442535}
-  YOffset: 0
+  YOffset: 40
+  ParticipantName: 
 --- !u!1 &1274386632
 GameObject:
   m_ObjectHideFlags: 0

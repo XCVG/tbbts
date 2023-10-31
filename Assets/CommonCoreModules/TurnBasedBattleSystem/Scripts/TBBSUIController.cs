@@ -8,7 +8,6 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using CommonCore.World;
-using static UnityEngine.GraphicsBuffer;
 
 namespace CommonCore.TurnBasedBattleSystem
 {
@@ -56,6 +55,8 @@ namespace CommonCore.TurnBasedBattleSystem
 
         [Header("Overlay"), SerializeField]
         private GameObject OverlayContainer = null;
+        [SerializeField]
+        private GameObject OverlayTemplate = null;
 
         [Header("Theming"), SerializeField]
         private bool EnableTheming = true;
@@ -297,13 +298,65 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public void RepaintOverlay()
         {
-            //TODO
+            var camera = WorldUtils.GetActiveCamera();
+            var canvasTransform = UICanvas.transform as RectTransform;
 
-            //first check and make sure each participant has an overlay
+            List<TBBSOverlayController> overlayControllers = new List<TBBSOverlayController>();
+            foreach(Transform t in OverlayContainer.transform)
+            {
+                if (t.gameObject == OverlayTemplate)
+                    continue;
 
-            //then for each overlay
-            //position over the battler
-            //and update the view
+                var oc = t.GetComponent<TBBSOverlayController>();
+                if(oc != null)
+                    overlayControllers.Add(oc);
+            }
+
+            var battlers = SceneController.Battlers;
+            foreach(var battlerKvp in battlers)
+            {
+                var participant = SceneController.ParticipantData[battlerKvp.Key];
+                if (!participant.BattleParticipant.ShowOverlay)
+                    continue;
+
+                TBBSOverlayController overlayForBattler = null;
+                foreach(var o in overlayControllers)
+                {
+                    if(o.ParticipantName == battlerKvp.Key)
+                    {
+                        overlayForBattler = o;
+                        break;
+                    }
+                }
+
+                if(overlayForBattler == null)
+                {
+                    var newOverlayGo = GameObject.Instantiate(OverlayTemplate, OverlayContainer.transform);
+                    overlayForBattler = newOverlayGo.GetComponent<TBBSOverlayController>();
+                    overlayForBattler.ParticipantName = battlerKvp.Key;
+                    newOverlayGo.SetActive(true);
+                }
+
+                //overlayForBattler.CanvasGroup.alpha = participant.Health <= 0 ? 0 : 1f;                
+                Vector2 vpPos = camera.WorldToViewportPoint(battlerKvp.Value.GetOverlayPoint());
+                Vector2 screenPos = new Vector2(((vpPos.x * canvasTransform.sizeDelta.x) - (canvasTransform.sizeDelta.x * 0.5f)), ((vpPos.y * canvasTransform.sizeDelta.y) - (canvasTransform.sizeDelta.y * 0.5f)));
+                Debug.Log($"vpPos: {vpPos} | screenPos: {screenPos} | sizeDelta: {canvasTransform.sizeDelta}");
+                screenPos += new Vector2(0, overlayForBattler.YOffset);
+                ((RectTransform)overlayForBattler.transform).anchoredPosition = screenPos;
+
+                overlayForBattler.NameText.text = participant.DisplayName;
+                overlayForBattler.EnergySlider.value = (participant.Energy / participant.MaxEnergy);
+                overlayForBattler.HealthSlider.value = (participant.Health / participant.MaxHealth);
+
+                //TODO conditions, eventually
+
+                overlayControllers.Remove(overlayForBattler);
+            }
+
+            foreach(var unusedOverlay in overlayControllers)
+            {
+                Destroy(unusedOverlay.gameObject);
+            }
         }
 
         public void HideUI()

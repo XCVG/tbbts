@@ -42,7 +42,16 @@ namespace CommonCore.TurnBasedBattleSystem
         [SerializeField]
         private Button AttackButton = null;
         [SerializeField]
+        private Button MovesButton = null;
+        [SerializeField]
         private Button GuardButton = null;
+
+        [Header("Pick Move"), SerializeField]
+        private GameObject PickMovePanel = null;
+        [SerializeField]
+        private GameObject PickMoveContainer = null;
+        [SerializeField]
+        private GameObject PickMoveButtonTemplate = null;
 
         [Header("Pick Target"), SerializeField]
         private GameObject PickTargetContainer = null;
@@ -173,6 +182,30 @@ namespace CommonCore.TurnBasedBattleSystem
                     gotoNext();
                 });
 
+                MovesButton.onClick.RemoveAllListeners();
+                MovesButton.interactable = false;
+                var moves = participant.Value.MoveSet.Moves
+                    .Select(m => m.Move)
+                    .Where(m => m != "Attack" && m != "Guard")
+                    .Join(SceneController.MoveDefinitions, m => m, d => d.Key, (m,d) => new KeyValuePair<string, MoveDefinition>(m, d.Value))
+                    .ToList();
+                Debug.Log(moves.ToNiceString(m => m.Key));
+                if(moves.Count > 0)
+                {
+                    MovesButton.interactable = true;
+                    MovesButton.onClick.AddListener(() =>
+                    {
+                        PickMove(moves, (selectedMove) =>
+                        {
+                            //TODO enqueue action from move
+
+                            gotoNext();
+                        });
+
+                    });
+                }
+                
+
                 EventSystem.current.SetSelectedGameObject(AttackButton.gameObject);
             }
 
@@ -239,6 +272,12 @@ namespace CommonCore.TurnBasedBattleSystem
 
             //TODO abort handling, styling, etc
 
+        }
+
+        private void PickMove(IEnumerable<KeyValuePair<string, MoveDefinition>> moves, Action<string> callback)
+        {
+            Debug.Log("Pickmoves");
+            Debug.Log(moves.ToNiceString(m => m.Key));
         }
 
         public IEnumerator ShowMessageAndWait(string message)

@@ -1,3 +1,16 @@
 {
-	
+	"Attack2": {
+		"Name": "Attack",
+		"Animation": "Attack",
+		"HitEffect": "DefaultHit",
+		"Power": 1,
+		"Randomness": 0.2,
+		"Speed": 0,
+		"DamageCalculation": "Normal",
+		"Target": "SingleEnemy",
+		"RepeatType": "Single",
+		"Flags": ["ContinueAnimationFromMidpoint"],
+		"MotionHint": "HitTarget",
+		"AlreadyDeadAction": "Retarget"
+	}
 }

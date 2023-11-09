@@ -1,6 +1,6 @@
 {
 	"Attack2": {
-		"Name": "Attack",
+		"Name": "Attack2",
 		"Animation": "Attack",
 		"HitEffect": "DefaultHit",
 		"Power": 1,
@@ -11,6 +11,10 @@
 		"RepeatType": "Single",
 		"Flags": ["ContinueAnimationFromMidpoint"],
 		"MotionHint": "HitTarget",
-		"AlreadyDeadAction": "Retarget"
+		"AlreadyDeadAction": "Retarget",
+		"NiceName": "Attack 2 (test)",
+		"Description": "Copy of attack used for testing special attacks",
+		"Icon": "move_attack2",
+		"MagicUse": 10
 	}
 }

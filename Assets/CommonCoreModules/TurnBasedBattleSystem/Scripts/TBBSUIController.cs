@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using CommonCore.World;
+using static UnityEngine.GraphicsBuffer;
 
 namespace CommonCore.TurnBasedBattleSystem
 {
@@ -52,6 +53,8 @@ namespace CommonCore.TurnBasedBattleSystem
         private GameObject PickMoveContainer = null;
         [SerializeField]
         private GameObject PickMoveButtonTemplate = null;
+        [SerializeField]
+        private Button PickMoveBackButton = null;
 
         [Header("Pick Target"), SerializeField]
         private GameObject PickTargetContainer = null;
@@ -197,9 +200,54 @@ namespace CommonCore.TurnBasedBattleSystem
                     {
                         PickMove(moves, (selectedMove) =>
                         {
-                            //TODO enqueue action from move
+                            
+                            var selectedMoveDefinition = moves.Find(m => m.Key == selectedMove);
+                            var moveTarget = selectedMoveDefinition.Value.Target;
+                            if(moveTarget == MoveTarget.SingleAlly || moveTarget == MoveTarget.SingleEnemy || moveTarget == MoveTarget.SingleParticipant)
+                            {
+                                //need to pick target if selectedmove requires target picking
+                                List<KeyValuePair<string, ParticipantData>> moveTargetableParticipants;
+                                switch (moveTarget)
+                                {
+                                    case MoveTarget.SingleEnemy:
+                                        moveTargetableParticipants = targetableParticipants;
+                                        break;
+                                    case MoveTarget.SingleAlly:
+                                        moveTargetableParticipants = SceneController
+                                            .ParticipantData
+                                            .Where(kvp => kvp.Value.BattleParticipant.ControlledBy == BattleParticipant.ControlledByType.Player)
+                                            .Where(kvp => kvp.Value.Health > 0)
+                                            .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                                            .ToList();
+                                        break;
+                                    case MoveTarget.SingleParticipant:
+                                        moveTargetableParticipants = SceneController
+                                            .ParticipantData
+                                            .Where(kvp => kvp.Value.Health > 0)
+                                            .Where(kvp => !kvp.Value.Conditions.Any(c => c is TBBSConditionBase tc && tc.BlockTargeting))
+                                            .ToList();
+                                        break;
+                                    default:
+                                        throw new NotImplementedException();
+                                }
 
-                            gotoNext();
+                                PickTarget(moveTargetableParticipants, (target) =>
+                                {
+                                    SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = target, Move = selectedMove, AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] + (int)selectedMoveDefinition.Value.Speed });
+                                    gotoNext();
+                                });
+                            }
+                            else
+                            {
+                                //no target picking necessary, enqueue next
+                                string chosenTarget = null;
+                                if (moveTarget == MoveTarget.Self)
+                                    chosenTarget = participant.Key;
+                                SceneController.ActionQueue.Add(new SimpleAttackAction() { AttackingParticipant = participant.Key, DefendingParticipant = chosenTarget, Move = selectedMove, AttackPriority = (int)participant.Value.Stats[TBBSStatType.Agility] + (int)selectedMoveDefinition.Value.Speed });
+
+                                gotoNext();
+                            }
+                            
                         });
 
                     });
@@ -278,6 +326,74 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             Debug.Log("Pickmoves");
             Debug.Log(moves.ToNiceString(m => m.Key));
+
+            PickMovePanel.SetActive(true);
+            ActionSelect2Panel.SetActive(false);
+
+            foreach(Transform t in PickMoveContainer.transform)
+            {
+                if (t.gameObject != PickMoveButtonTemplate)
+                    Destroy(t);
+            }
+
+            foreach(var moveKvp in moves)
+            {
+                string move = moveKvp.Key;
+                var buttonGo = GameObject.Instantiate(PickMoveButtonTemplate, PickMoveContainer.transform);
+                buttonGo.SetActive(true);
+
+                //WIP set visuals on button
+                var titleText = buttonGo.transform.Find("TitleText").GetComponent<Text>();
+                titleText.text = string.IsNullOrEmpty(moveKvp.Value.NiceName) ? moveKvp.Value.Name : moveKvp.Value.NiceName;
+
+                var descText = buttonGo.transform.Find("DescText").GetComponent<Text>();
+                descText.text = moveKvp.Value.Description;
+
+                var magicIcon = buttonGo.transform.Find("EnergyIcon");
+                var magicText = buttonGo.transform.Find("EnergyText").GetComponent<Text>();
+                if (moveKvp.Value.MagicUse > 0)
+                {
+                    magicText.text = moveKvp.Value.MagicUse.ToString("F0");
+                }
+                else
+                {
+                    magicIcon.gameObject.SetActive(false);
+                    magicText.gameObject.SetActive(false);
+                }
+
+                string iconName = moveKvp.Value.Icon;
+                if(!string.IsNullOrEmpty(iconName))
+                {
+                    var iconTex = CoreUtils.LoadResource<Texture2D>("UI/Icons/" + iconName);
+                    var iconImage = buttonGo.transform.Find("Icon").GetComponent<RawImage>();
+                    if (iconTex != null)
+                    {
+                        iconImage.texture = iconTex;
+                    }
+                    else
+                    {
+                        iconImage.gameObject.SetActive(false);
+                    }                    
+                }
+                else
+                {
+                    buttonGo.transform.Find("Icon").gameObject.SetActive(false);
+                }
+
+                var button = buttonGo.GetComponent<Button>();
+                button.onClick.AddListener(() =>
+                {
+                    PickMovePanel.SetActive(false);
+                    callback(move);
+                });
+            }
+
+            PickMoveBackButton.onClick.RemoveAllListeners();
+            PickMoveBackButton.onClick.AddListener(() =>
+            {
+                PickMovePanel.SetActive(false);
+                ActionSelect2Panel.SetActive(true);
+            });
         }
 
         public IEnumerator ShowMessageAndWait(string message)

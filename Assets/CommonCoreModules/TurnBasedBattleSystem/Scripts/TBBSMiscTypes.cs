@@ -349,6 +349,11 @@ namespace CommonCore.TurnBasedBattleSystem
         [JsonProperty]
         public string Term { get; set; }
 
+        //stuff for UI
+        public string NiceName { get; set; }
+        public string Icon { get; set; }
+        public string Description { get; set; }
+
         [JsonProperty]
         public IDictionary<string, object> ExtraData { get; set; }
 

@@ -193,12 +193,12 @@ namespace CommonCore.TurnBasedBattleSystem
                     .Join(SceneController.MoveDefinitions, m => m, d => d.Key, (m,d) => new KeyValuePair<string, MoveDefinition>(m, d.Value))
                     .ToList();
                 Debug.Log(moves.ToNiceString(m => m.Key));
-                if(moves.Count > 0)
+                if(moves.Any(kvp => kvp.Value.MagicUse <= participant.Value.Magic))
                 {
                     MovesButton.interactable = true;
                     MovesButton.onClick.AddListener(() =>
                     {
-                        PickMove(moves, (selectedMove) =>
+                        PickMove(moves, participant.Value, (selectedMove) =>
                         {
                             
                             var selectedMoveDefinition = moves.Find(m => m.Key == selectedMove);
@@ -322,7 +322,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
         }
 
-        private void PickMove(IEnumerable<KeyValuePair<string, MoveDefinition>> moves, Action<string> callback)
+        private void PickMove(IEnumerable<KeyValuePair<string, MoveDefinition>> moves, ParticipantData participant, Action<string> callback)
         {
             Debug.Log("Pickmoves");
             Debug.Log(moves.ToNiceString(m => m.Key));
@@ -342,13 +342,14 @@ namespace CommonCore.TurnBasedBattleSystem
                 var buttonGo = GameObject.Instantiate(PickMoveButtonTemplate, PickMoveContainer.transform);
                 buttonGo.SetActive(true);
 
-                //WIP set visuals on button
+                //set visuals on button
                 var titleText = buttonGo.transform.Find("TitleText").GetComponent<Text>();
                 titleText.text = string.IsNullOrEmpty(moveKvp.Value.NiceName) ? moveKvp.Value.Name : moveKvp.Value.NiceName;
 
                 var descText = buttonGo.transform.Find("DescText").GetComponent<Text>();
                 descText.text = moveKvp.Value.Description;
 
+                //this is a typo: it's actually magic, but I'm too lazy to change it
                 var magicIcon = buttonGo.transform.Find("EnergyIcon");
                 var magicText = buttonGo.transform.Find("EnergyText").GetComponent<Text>();
                 if (moveKvp.Value.MagicUse > 0)
@@ -386,6 +387,11 @@ namespace CommonCore.TurnBasedBattleSystem
                     PickMovePanel.SetActive(false);
                     callback(move);
                 });
+
+                if (moveKvp.Value.MagicUse > participant.Magic)
+                {
+                    button.interactable = false;
+                }
             }
 
             PickMoveBackButton.onClick.RemoveAllListeners();
@@ -500,7 +506,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 ((RectTransform)overlayForBattler.transform).anchoredPosition = screenPos;
 
                 overlayForBattler.NameText.text = participant.DisplayName;
-                overlayForBattler.EnergySlider.value = (participant.Energy / participant.MaxEnergy);
+                overlayForBattler.EnergySlider.value = (participant.Magic / participant.MaxMagic); //was accidentally named "EnergySlider" but TBBS actually uses Magic
                 overlayForBattler.HealthSlider.value = (participant.Health / participant.MaxHealth);
 
                 //TODO conditions, eventually

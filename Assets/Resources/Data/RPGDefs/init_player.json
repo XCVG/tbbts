@@ -5,6 +5,7 @@
 	"Health": 110.0,
 	"HealthFraction": 1.0,
 	"EnergyFraction": 1.0,
+	"MagicFraction": 1.0,
 	"ShieldsFraction": 0.0,
 	"Experience": 0,
 	"Level": 1,

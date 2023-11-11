@@ -34,6 +34,7 @@ namespace CommonCore.RpgGame.Dialogue
         public bool ApplyTheme = true;
         public string OverrideTheme;
 
+        public VnxController VnxController;
         public RectTransform ChoicePanel;
         public RectTransform NameTextPanel;
         public Text TextTitle;
@@ -80,13 +81,34 @@ namespace CommonCore.RpgGame.Dialogue
             //if (AutoPauseGame)
             //    LockPauseModule.PauseGame(this.gameObject);
 
+            if (VnxController == null && GameParams.DialogueUseVnx)
+            {
+                VnxController = GetComponent<VnxController>();
+                if(VnxController != null)
+                {
+                    Debug.LogWarning($"[Dialogue] DialogueController missing VnxController reference but VnxController was found");
+                    VnxController.DialogueController = this;
+                }
+                else
+                {
+                    Debug.LogError($"[Dialogue] DialogueController missing VnxController reference and VnxController could not be found");
+                }
+            }
+
             DefaultPanelHeight = ChoicePanel.rect.height; //ordering of this wrt ApplyThemeToPanel may matter later
 
             ApplyThemeToPanel();
 
             Trace = new DialogueTrace();
 
-            ScriptingModule.CallNamedHooked("DialogueOnOpen", this);
+            if (VnxController != null)
+            {
+                VnxController.Init();
+                if(VnxController.enabled)
+                    VnxController.OnDialogueOpen(this);
+            }
+                
+            ScriptingModule.CallNamedHooked("DialogueOnOpen", this);            
 
             SetPlayerFlags();
 
@@ -116,6 +138,8 @@ namespace CommonCore.RpgGame.Dialogue
             if (CCBase.Terminated)
                 return; //nop, game is ended anyway and there's nothing we can meaningfully do
 
+            if(VnxController != null && VnxController.enabled && GameParams.DialogueUseVnx)
+                VnxController.OnDialogueClose();
             ScriptingModule.CallNamedHooked("DialogueOnClose", this);
             CurrentDialogue = null;
             LockPauseModule.UnpauseGame(this.gameObject);
@@ -173,6 +197,8 @@ namespace CommonCore.RpgGame.Dialogue
             if (f is BlankFrame)
             {
                 CurrentFrameObject = f;
+                if (VnxController != null && VnxController.enabled && GameParams.DialogueUseVnx)
+                    VnxController.OnDialoguePresent(CurrentFrameObject);
                 ScriptingModule.CallNamedHooked("DialogueOnPresent", this, CurrentFrameObject);
                 TryCallScript(f?.Scripts?.OnPresent, f);                
                 OnChoiceButtonClick(0);
@@ -229,6 +255,36 @@ namespace CommonCore.RpgGame.Dialogue
                 {
                     BackgroundImage.sprite = sprite;
                     BackgroundImage.gameObject.SetActive(true);
+                    var rt = (RectTransform)BackgroundImage.transform;
+                    var arf = BackgroundImage.GetComponent<AspectRatioFitter>();
+                    switch (f.Options.BackgroundSize)
+                    {
+                        case BackgroundSizing.None:
+                            arf.aspectMode = AspectRatioFitter.AspectMode.None;
+                            rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, sprite.rect.width * (100f / sprite.pixelsPerUnit));
+                            rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, sprite.rect.height * (100f / sprite.pixelsPerUnit));
+                            break;
+                        case BackgroundSizing.Fill:
+                            arf.aspectMode = AspectRatioFitter.AspectMode.None;
+                            rt.sizeDelta = Vector2.zero;
+                            break;
+                        case BackgroundSizing.Contain:
+                            arf.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                            arf.aspectRatio = sprite.rect.width / sprite.rect.height;
+                            break;
+                        case BackgroundSizing.Cover:
+                            arf.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+                            arf.aspectRatio = sprite.rect.width / sprite.rect.height;
+                            break;
+                        case BackgroundSizing.MatchWidth:
+                            arf.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
+                            arf.aspectRatio = sprite.rect.width / sprite.rect.height;
+                            break;
+                        case BackgroundSizing.MatchHeight:
+                            arf.aspectMode = AspectRatioFitter.AspectMode.HeightControlsWidth;
+                            arf.aspectRatio = sprite.rect.width / sprite.rect.height;
+                            break;
+                    }
                 }
                 else
                 {
@@ -538,6 +594,8 @@ namespace CommonCore.RpgGame.Dialogue
 
             CurrentFrameObject = f;
 
+            if (VnxController != null && VnxController.enabled && GameParams.DialogueUseVnx)
+                VnxController.OnDialoguePresent(CurrentFrameObject);
             ScriptingModule.CallNamedHooked("DialogueOnPresent", this, CurrentFrameObject);
             TryCallScript(f?.Scripts?.OnPresent, f);
 
@@ -659,6 +717,8 @@ namespace CommonCore.RpgGame.Dialogue
         {
             var nextLoc = ParseLocation(next);
 
+            if (VnxController != null && VnxController.enabled && GameParams.DialogueUseVnx)
+                VnxController.OnDialogueAdvance(nextLoc);
             ScriptingModule.CallNamedHooked("DialogueOnAdvance", this, nextLoc);
 
             if (string.IsNullOrEmpty(nextLoc.Key) || nextLoc.Key == "this" || nextLoc.Key == CurrentSceneName)

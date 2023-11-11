@@ -2,8 +2,8 @@
 using CommonCore.Console;
 using CommonCore.DebugLog;
 using CommonCore.State;
+using CommonCore.UI;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -29,10 +29,14 @@ public static class SharedConsoleCommands
         try
         {
             var sceneNames = CoreUtils.GetSceneList();
+            var sceneRemaps = new Dictionary<string, string>(CoreUtils.EnumerateSceneOverrides());
             StringBuilder sb = new StringBuilder(sceneNames.Length * 16);
             foreach (var s in sceneNames)
             {
-                sb.AppendLine(s);
+                if (sceneRemaps.TryGetValue(Path.GetFileNameWithoutExtension(s), out string remappedName))
+                    sb.AppendLine($"{s} -> {remappedName}");
+                else
+                    sb.AppendLine(s);
             }
             ConsoleModule.WriteLine(sb.ToString());
         }
@@ -49,10 +53,14 @@ public static class SharedConsoleCommands
         try
         {
             var sceneNames = CoreUtils.GetSceneList();
+            var sceneRemaps = new Dictionary<string, string>(CoreUtils.EnumerateSceneOverrides());
             StringBuilder sb = new StringBuilder(sceneNames.Length * 16);
             foreach (var s in sceneNames)
             {
-                sb.AppendLine(Path.GetFileNameWithoutExtension(s));
+                if (sceneRemaps.TryGetValue(Path.GetFileNameWithoutExtension(s), out string remappedName))
+                    sb.AppendLine($"{Path.GetFileNameWithoutExtension(s)} -> {remappedName}");
+                else
+                    sb.AppendLine(Path.GetFileNameWithoutExtension(s));
             }
             ConsoleModule.WriteLine(sb.ToString());
         }
@@ -172,6 +180,24 @@ public static class SharedConsoleCommands
     static void ShowGameOver()
     {
         SharedUtils.ShowGameOver();
+    }
+
+    /// <summary>
+    /// Shows default main menu
+    /// </summary>
+    [Command]
+    public static void ShowMainMenu()
+    {
+        var mainMenuController = CoreUtils.GetUIRoot().GetComponentInChildren<MainMenuController>();
+        if (mainMenuController != null)
+        {
+            MetaState.Instance.SessionFlags.Add("ShowMainMenu");
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+        else
+        {
+            ConsoleModule.WriteLine($"{nameof(ShowMainMenu)} must be invoked from the main menu screen. Use {nameof(EndGame)} or {nameof(WarpDirect)} {CoreParams.MainMenuScene} to go to the main menu first.");
+        }
     }
 
     //***** SCREENFADE

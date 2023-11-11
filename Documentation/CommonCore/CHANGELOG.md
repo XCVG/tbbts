@@ -574,4 +574,66 @@
 * Added OnConfigChange script hook which is called when config is changed
 * Player RPG stats can be recalculated on difficulty change (controlled via RecalculatePlayerStatsOnConfigChange GameParam)
 
-# 5.0.0 pNext
+# 5.0.0 Preview 2
+* Moved PostBuild and PxEnum editor scripts into CommonCore/Editor folder
+* Added campaign start date and last save date to save metadata
+* Added OnCoreShutdown call to CCModule that gets called before any modules are disposed
+* Added BeforeCoreShutdown script hook called by OnCoreShutdown before any modules are disposed
+* Added TreatUnknownAsNull option to PxEnumConverter
+* Fixed dropdowns in options not having correct text overflow set
+* Renamed UnparseableConfigVars to UnparseableCustomConfigVars
+* Added JToken.ToValueAuto extension method to TypeUtils
+* Added explicit LocalLow option to PersistentDataPathWindows/WindowsPersistentDataPath
+* Modified BulletScript to allow "prewarming" (calling init and raycast immediately)
+* Added prewarm bullet option to ActorAttackComponent (PrewarmBullet field)
+* Added prewarm bullet optino to player weapons (WeaponPrewarmBullet flag on item model)
+* Improved "FID same as TID" warning message in BaseController (entity base controller)
+* Upgraded Unity minor version to 2021.3.28f1
+* CustomConfigVars now supports primitive types
+* Added HideCrosshairOnPlayerFlags option to SpriteWeaponViewModelScript to hide sprite weapon controlled crosshair
+* Audio channel setting is only applied on start, and changing this setting requires a restart. This works around audio clips being lost by audio system restart
+* Fix TextureAssignScript breaking if only used for RawImage and not Renderer
+* Fix AsyncUtils.ThrowIfStopped breaking when used from another thread
+* Added ShowGameOver console command
+* Added Relative option to GenericRotateScript
+* Added CheckParentsForEntity flag and improved entity handling in OnTriggerEnterTrigger/OnTriggerExitTrigger
+* DestroyableThingController is now much more open for deriving and extending
+* New init screen with animation, graphics, and tweaks to InitSceneController
+* Minor cleanup to GetEffectiveTheme and PanelController
+* EditorConditional and EditorMicroscript now throws if type is unknown
+* Player prefab name can now be overridden from WorldSceneController or GameState
+* Added PersistInitialPosition option to ActorController to save InitialPosition
+* Resource manifest generation now includes sub-assets
+* Add scene override redirection APIs to CoreUtils
+* Migrations can now indicate whether they actually made changes or not through MigrationHasChanges flag in context object
+* PersistStateUnifiedMigration and ConfigStateUnifiedMigration signal MigrationHasChanges
+
+# 5.0.0
+
+* OnApplicationQuit now has a check so it won't run again if core is already shut down
+* Removed obsolete/redundant LoadClean command
+
+# 6.0.0 Preview 1
+
+- Visual Novel Extensions (VNX) is now included with RPGGame
+- Fix UnequipItem equipping items from the slot defined in item instead of the slot the item is actually in
+- Add integrated handling for custom main menus including ShowMainMenu console command to show base menu
+- Spawn console command now sets spawned entity as selected
+- PushBroadcast no longer sets sender to null even if sender was set
+- Use of time-based counter to generate UID in ResetUID is now logged
+- PlayerMovementComponent now uses separate multiplier for push impulse when in the air
+- Uses new API for setting screen resolution and checks to see if refresh rate is available before setting
+- Fix audio channel selection not showing correctly in UI after setting change
+- Rearranged Basic Options to clean up alignment, group settings more logically, and fit in new settings
+- Disabled settings (monitor, resolution, fullscreen) now shown as disabled on platforms where not available
+- Added Scroll Speed slider to settings UI
+- Added Refresh Rate slider to settings UI
+- Fix resolution dropdown showing incorrectly if first resolution is chosen
+- MappedInputModule now updates scroll speed of MappedInputComponent on config change
+- Reworked difficulty system, making DifficultyValues a partial class for extensibility and loading from a JSON file in RPGDefs
+- Fix EditorMicroscript throwing if Action is set to Unknown, even for Exec Type where it is a valid value
+- Add handling for remaps to PrintScenePathList and PrintSceneList
+- Add BackgroundSize option to dialogue files, providing different options to fit the background to screen
+- Add ImageFitMode option to SlideshowController
+
+# 6.0.0 pNext

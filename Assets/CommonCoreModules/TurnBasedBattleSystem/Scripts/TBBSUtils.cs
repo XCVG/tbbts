@@ -135,6 +135,7 @@ namespace CommonCore.TurnBasedBattleSystem
             {
                 Name = "Attack",
                 Animation = "Attack",
+                SoundEffect = "GenericAttackSwing",
                 HitEffect = "DefaultHit",
                 Power = 1,
                 Randomness = 0.2f,
@@ -142,15 +143,16 @@ namespace CommonCore.TurnBasedBattleSystem
                 DamageCalculation = MoveDamageCalculation.Normal,
                 Target = MoveTarget.SingleEnemy,
                 RepeatType = MoveRepeatType.Single,
-                Flags = new List<MoveFlag>() { MoveFlag.ContinueAnimationFromMidpoint },
+                Flags = new List<MoveFlag>() { MoveFlag.ContinueAnimationFromMidpoint, MoveFlag.UseTargetHitPuff },
                 MotionHint = MoveMotionHint.HitTarget,
-                AlreadyDeadAction = MoveAlreadyDeadAction.Retarget
+                AlreadyDeadAction = MoveAlreadyDeadAction.Retarget                
             });
 
             moves.Add("Guard", new MoveDefinition()
             {
                 Name = "Guard",
                 Animation = "Guard",
+                SoundEffect = "GenericGuardSwing",
                 HitEffect = null,
                 Power = 0,
                 Speed = 0,

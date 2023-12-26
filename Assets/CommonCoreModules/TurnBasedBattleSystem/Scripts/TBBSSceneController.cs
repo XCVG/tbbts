@@ -15,6 +15,9 @@ namespace CommonCore.TurnBasedBattleSystem
         [Header("References"), SerializeField]
         private TBBSUIController UIController =  null;
 
+        [Header("Debug"), SerializeField]
+        private string DebugBattleDefinitionScript = null;
+
         public GameObject Stage { get; private set; }
         public Dictionary<string, BattlerController> Battlers { get; private set; } = new Dictionary<string, BattlerController>();
 
@@ -56,7 +59,14 @@ namespace CommonCore.TurnBasedBattleSystem
 
             if(BattleDefinition == null)
             {
-                BattleDefinition = TBBSUtils.GenerateDefaultBattleDefinition();
+                if(!string.IsNullOrEmpty(DebugBattleDefinitionScript))
+                {
+                    BattleDefinition = (BattleDefinition)ScriptingModule.CallForResult(DebugBattleDefinitionScript, new ScriptExecutionContext() { Activator = this.gameObject, Caller = this });
+                }
+                else
+                {
+                    BattleDefinition = TBBSUtils.GenerateDefaultBattleDefinition();
+                }                
             }
             LoadBattlerData();
 
@@ -133,6 +143,7 @@ namespace CommonCore.TurnBasedBattleSystem
                     }
                     else if(CurrentAction == null)
                     {
+                        CurrentActionStarted = false;
                         CurrentAction = ActionQueue[0];
                         ActionQueue.RemoveAt(0);
                     }
@@ -169,7 +180,7 @@ namespace CommonCore.TurnBasedBattleSystem
                     break;
                 case BattlePhase.Action:
                     CurrentAction?.Update();
-                    if(ActionQueue.Count == 0)
+                    if(ActionQueue.Count == 0 && CurrentAction == null)
                     {
                         //end action phase and turn
 
@@ -184,14 +195,14 @@ namespace CommonCore.TurnBasedBattleSystem
                     else
                     {
                         if (CurrentAction == null)
-                        {
+                        {                            
                             CurrentAction = ActionQueue[0];
                             ActionQueue.RemoveAt(0);
                         }
                         if (!CurrentActionStarted && CurrentAction != null)
                         {
-                            CurrentAction.Start(CreateContext());
-                            CurrentActionStarted = true;
+                            CurrentActionStarted = true; //needs to be first!
+                            CurrentAction.Start(CreateContext()); //since some actions will immediately resolve                
                         }
                     }                    
                     break;
@@ -313,6 +324,13 @@ namespace CommonCore.TurnBasedBattleSystem
                         characterModel = new CharacterModel(); //probably not safe
                         break;
                 }
+                if(BattleDefinition.ResetCharacterStatusOnStart)
+                {
+                    characterModel.EnergyFraction = 1;
+                    characterModel.HealthFraction = 1;
+                    characterModel.MagicFraction = 1;
+                    characterModel.ShieldsFraction = 1;
+                }
                 var bd = new ParticipantData()
                 {
                     CharacterModel = characterModel,
@@ -334,6 +352,15 @@ namespace CommonCore.TurnBasedBattleSystem
             {
                 var stagePrefab = CoreUtils.LoadResource<GameObject>("TurnBasedBattles/Stages/" + BattleDefinition.Stage);
                 Stage = GameObject.Instantiate(stagePrefab, CoreUtils.GetWorldRoot());
+                var stageController = Stage.GetComponent<TBBSStageController>();
+                if(stageController != null)
+                {
+                    stageController.Init(this);
+                }
+                else
+                {
+                    Debug.LogWarning("stage has no stage controller!");
+                }
                 Debug.Log($"Spawned stage (prefab: {BattleDefinition.Stage})");
             }
         }
@@ -616,6 +643,20 @@ namespace CommonCore.TurnBasedBattleSystem
                 ActionQueue.Add(conditionUpdateAction);
             }
 
+            //ensure a RegenerateAction exists and is at the end
+            int regenerateActionIdx = ActionQueue.FindIndex(a => a is RegenerateAction);
+            if (regenerateActionIdx >= 0)
+            {
+                var regenerateAction = ActionQueue[regenerateActionIdx];
+                ActionQueue.RemoveAt(regenerateActionIdx);
+                ActionQueue.Add(regenerateAction);
+            }
+            else
+            {
+                var regenerateAction = new RegenerateAction();
+                ActionQueue.Add(regenerateAction);
+            }
+
             ScriptingModule.CallNamedHooked("TBBSOnPostReorder", this, ActionQueue);
 
         }
@@ -628,6 +669,23 @@ namespace CommonCore.TurnBasedBattleSystem
 
             ActionQueue.Clear();
             EnterPhase(BattlePhase.Outro);
+        }
+
+        //basically used to remove pending actions for a participant after they die
+        public void RemovePendingActionsForParticipant(string participantName)
+        {
+            for(int i = ActionQueue.Count - 1; i >= 0; i--)
+            {
+                BattleAction action = ActionQueue[i];
+                if(action is GuardAction ga && ga.GuardingParticipant == participantName)
+                {
+                    ActionQueue.RemoveAt(i);
+                }
+                else if(action is BaseAttackAction aa && aa.AttackingParticipant == participantName)
+                {
+                    ActionQueue.RemoveAt(i);
+                }
+            }
         }
 
     }    

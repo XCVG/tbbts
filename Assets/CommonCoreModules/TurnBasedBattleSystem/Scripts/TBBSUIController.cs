@@ -69,6 +69,8 @@ namespace CommonCore.TurnBasedBattleSystem
         private GameObject OverlayContainer = null;
         [SerializeField]
         private GameObject OverlayTemplate = null;
+        [SerializeField, Tooltip("fractional value per second")]
+        private float OverlayAnimateRate = 0.1f;
 
         [Header("Theming"), SerializeField]
         private bool EnableTheming = true;
@@ -338,6 +340,13 @@ namespace CommonCore.TurnBasedBattleSystem
 
             foreach(var moveKvp in moves)
             {
+                //doesn't work since join in the preceding LINQ statement implies inner join
+                if(moveKvp.Value == null)
+                {
+                    Debug.LogWarning("Can't find move definition for " + moveKvp.Key);
+                    continue;
+                }
+
                 string move = moveKvp.Key;
                 var buttonGo = GameObject.Instantiate(PickMoveButtonTemplate, PickMoveContainer.transform);
                 buttonGo.SetActive(true);
@@ -456,41 +465,96 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             OverlayContainer.SetActive(true);
         }
-
+        
         public void RepaintOverlay()
         {
+            RepaintOverlayInternal(false);
+        }
+
+        //TODO repaint and animate variant
+        public void RepaintOverlayAnimated(Action completeCallback)
+        {
+            var animateBlocks = RepaintOverlayInternal(true);
+            
+            StartCoroutine(CoAnimateOverlayBars(animateBlocks, completeCallback));  
+        }
+
+        private IEnumerator CoAnimateOverlayBars(List<OverlayBarAnimateData> animateBlocks, Action completeCallback)
+        {
+            bool allDone = false;
+            //Debug.Log("CoAnimateOverlayBars Start");
+            //Debug.Log(animateBlocks.Count);
+            while(!allDone)
+            {
+                allDone = true;
+                foreach (var animateBlock in animateBlocks)
+                {
+                    float currentValue = animateBlock.Slider.value;
+                    if(!Mathf.Approximately(currentValue, animateBlock.EndValue))
+                    {
+                        allDone = false;
+                        float newValue;
+                        if (animateBlock.EndValue > animateBlock.StartValue)
+                        {
+                            //value goes up
+                            newValue = Mathf.Min(currentValue + (Time.deltaTime * OverlayAnimateRate), animateBlock.EndValue);
+                            
+                        }
+                        else
+                        {
+                            //value goes down
+                            newValue = Mathf.Max(currentValue - (Time.deltaTime * OverlayAnimateRate), animateBlock.EndValue);
+                        }
+                        animateBlock.Slider.value = newValue;
+                    }
+                }
+
+                yield return null;
+            }
+
+            //Debug.Log("CoAnimateOverlayBars End");
+
+            completeCallback();
+        }
+
+        private List<OverlayBarAnimateData> RepaintOverlayInternal(bool animate)
+        {
+            List<OverlayBarAnimateData> animateBlocks = null;
+            if (animate)
+                animateBlocks = new List<OverlayBarAnimateData>();
+
             var camera = WorldUtils.GetActiveCamera();
             var canvasTransform = UICanvas.transform as RectTransform;
 
             List<TBBSOverlayController> overlayControllers = new List<TBBSOverlayController>();
-            foreach(Transform t in OverlayContainer.transform)
+            foreach (Transform t in OverlayContainer.transform)
             {
                 if (t.gameObject == OverlayTemplate)
                     continue;
 
                 var oc = t.GetComponent<TBBSOverlayController>();
-                if(oc != null)
+                if (oc != null)
                     overlayControllers.Add(oc);
             }
 
             var battlers = SceneController.Battlers;
-            foreach(var battlerKvp in battlers)
+            foreach (var battlerKvp in battlers)
             {
                 var participant = SceneController.ParticipantData[battlerKvp.Key];
                 if (!participant.BattleParticipant.ShowOverlay)
                     continue;
 
                 TBBSOverlayController overlayForBattler = null;
-                foreach(var o in overlayControllers)
+                foreach (var o in overlayControllers)
                 {
-                    if(o.ParticipantName == battlerKvp.Key)
+                    if (o.ParticipantName == battlerKvp.Key)
                     {
                         overlayForBattler = o;
                         break;
                     }
                 }
 
-                if(overlayForBattler == null)
+                if (overlayForBattler == null)
                 {
                     var newOverlayGo = GameObject.Instantiate(OverlayTemplate, OverlayContainer.transform);
                     overlayForBattler = newOverlayGo.GetComponent<TBBSOverlayController>();
@@ -506,18 +570,47 @@ namespace CommonCore.TurnBasedBattleSystem
                 ((RectTransform)overlayForBattler.transform).anchoredPosition = screenPos;
 
                 overlayForBattler.NameText.text = participant.DisplayName;
-                overlayForBattler.EnergySlider.value = (participant.Magic / participant.MaxMagic); //was accidentally named "EnergySlider" but TBBS actually uses Magic
-                overlayForBattler.HealthSlider.value = (participant.Health / participant.MaxHealth);
+
+                float newEValue = Mathf.Clamp((participant.Magic / participant.MaxMagic), 0, 1);
+                float newHValue = Mathf.Clamp((participant.Health / participant.MaxHealth), 0, 1);
+
+                if (animate)
+                {
+                    //generate animate blocks
+                    float oldEValue = overlayForBattler.EnergySlider.value;
+                    if(!Mathf.Approximately(oldEValue, newEValue))
+                    {
+                        //Debug.Log($"add animate block for {participant.Name}, E, {oldEValue:F2}->{newEValue:F2}");
+                        animateBlocks.Add(new OverlayBarAnimateData() { EndValue = newEValue, StartValue = oldEValue, Slider = overlayForBattler.EnergySlider });
+                    }
+                        
+
+                    float oldHValue = overlayForBattler.HealthSlider.value;
+                    if (!Mathf.Approximately(oldHValue, newHValue))
+                    {
+                        //Debug.Log($"add animate block for {participant.Name}, H, {oldHValue:F2}->{newHValue:F2}");
+                        animateBlocks.Add(new OverlayBarAnimateData() { EndValue = newHValue, StartValue = oldHValue, Slider = overlayForBattler.HealthSlider });
+                    }
+                        
+                }
+                else
+                {
+                    overlayForBattler.EnergySlider.value = newEValue; //was accidentally named "EnergySlider" but TBBS actually uses Magic
+                    overlayForBattler.HealthSlider.value = newHValue;
+                }
+                
 
                 //TODO conditions, eventually
 
                 overlayControllers.Remove(overlayForBattler);
             }
 
-            foreach(var unusedOverlay in overlayControllers)
+            foreach (var unusedOverlay in overlayControllers)
             {
                 Destroy(unusedOverlay.gameObject);
             }
+
+            return animateBlocks;
         }
 
         public void HideUI()
@@ -557,6 +650,11 @@ namespace CommonCore.TurnBasedBattleSystem
             }
         }
 
-
+        private class OverlayBarAnimateData
+        {
+            public Slider Slider { get; set; }
+            public float StartValue { get; set; }
+            public float EndValue { get; set; }
+        }
     }
 }

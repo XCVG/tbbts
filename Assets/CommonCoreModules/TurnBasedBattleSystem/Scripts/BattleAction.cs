@@ -29,9 +29,34 @@ namespace CommonCore.TurnBasedBattleSystem
 
         protected IEnumerator CoBattlerDeathSequence(ParticipantData participant, BattlerController battler)
         {
-            Debug.LogWarning($"{participant.Name} death sequence (not implemented)");
-            //TODO
-            yield break;
+            //Debug.LogWarning($"{participant.Name} death sequence (not implemented)");
+
+            yield return null;
+
+            Context.UIController.ShowMessage($"{participant.Name} is defeated!");
+
+            bool animDone = false;
+            battler.PlayAnimation("Death", () =>
+            {
+                animDone = true;
+            }, new BattlerAnimationArgs()
+            {
+                AnimateMotion = false,
+                AnimationTimescale = 1,
+                DoNotReturnToIdle = true,
+                SoundEffect = participant.BattleParticipant.DeathSound,
+                InitialEffect = participant.BattleParticipant.DeathEffect,
+                PlaySoundPositional = true
+            });
+
+            while(!animDone)
+            {
+                yield return null;
+            }
+
+            yield return new WaitForSeconds(1f);
+
+            Context.UIController.ClearMessage();
         }
 
     }
@@ -252,6 +277,7 @@ namespace CommonCore.TurnBasedBattleSystem
                     PlayEffectAtMidpoint = playEffectAtMidpoint,
                     AnimateMotion = animateMotion,
                     TargetPosition = animTargetPos,
+                    TargetBattler = targets.Count > 0 ? targets[0].Battler : null,
                     MidpointCallback = () =>
                     {
                         mpAnimDone = true;
@@ -262,7 +288,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
                 StringBuilder endMessage = new StringBuilder();
                 int startedAnimationCount = 0, completedAnimationCount = 0;
-                List<TBBSEffectWaitScriptBase> effectsToWaitOn = new List<TBBSEffectWaitScriptBase>();
+                List<TBBSEffectScriptBase> effectsToWaitOn = new List<TBBSEffectScriptBase>();
                 foreach(var target in targets)
                 {
                     if (!target.IsAlive && !MoveDefinition.HasFlag(MoveFlag.ApplyGroupAttackOnDeadTargets))
@@ -293,15 +319,25 @@ namespace CommonCore.TurnBasedBattleSystem
                         });
                     }
 
-                    if(!string.IsNullOrEmpty(MoveDefinition.HitEffect))
+                    string hitEffect = null;
+                    hitEffect = MoveDefinition.HitEffect;
+                    string targetHitPuff = target.Battler.GetHitPuffEffect();
+                    if (MoveDefinition.HasFlag(MoveFlag.UseTargetHitPuff) && !string.IsNullOrEmpty(targetHitPuff))
+                        hitEffect = targetHitPuff;
+
+                    if (!string.IsNullOrEmpty(hitEffect))
                     {
                         var targetPos = target.Battler.GetTargetPoint();
-                        var effectGO = WorldUtils.SpawnEffect(MoveDefinition.HitEffect, targetPos, Quaternion.identity, null, true);
+                        var effectGO = WorldUtils.SpawnEffect(hitEffect, targetPos, Quaternion.identity, null, true);
                         if(effectGO != null)
                         {
-                            var waitScript = effectGO.GetComponent<TBBSEffectWaitScriptBase>();
+                            var waitScript = effectGO.GetComponent<TBBSEffectScriptBase>();
                             if (waitScript != null)
+                            {
+                                waitScript.TargetBattler = target.Battler;
+                                waitScript.CurrentBattler = target.Battler;
                                 effectsToWaitOn.Add(waitScript);
+                            }                                
                         }                        
                     }
 
@@ -350,6 +386,11 @@ namespace CommonCore.TurnBasedBattleSystem
                     {
                         yield return CoBattlerDeathSequence(target.Participant, target.Battler);
                         target.PendingDeathAnimation = false;
+                        //needed?
+                        Context.UIController.ClearMessage();
+                        Context.UIController.ShowOverlay();
+                        Context.UIController.RepaintOverlay();
+                        Context.SceneController.RemovePendingActionsForParticipant(target.Participant.Name);
                     }
                 }
 
@@ -363,7 +404,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 Context.UIController.ClearMessage();
 
                 // need to handle MoveRepeatType and MoveAlreadyDeadAction after all (only for single-target moves!)
-                if (numRepeats > 1 && (MoveDefinition.RepeatType == MoveRepeatType.RandomTarget || MoveDefinition.RepeatType == MoveRepeatType.DifferentTarget || (MoveDefinition.AlreadyDeadAction == MoveAlreadyDeadAction.Retarget && MoveDefinition.RepeatType == MoveRepeatType.SameTarget && !targets[0].IsAlive)) && MoveDefinition.Target == MoveTarget.SingleAlly || MoveDefinition.Target == MoveTarget.SingleEnemy || MoveDefinition.Target == MoveTarget.SingleParticipant)
+                if (numRepeats > 1 && (MoveDefinition.RepeatType == MoveRepeatType.RandomTarget || MoveDefinition.RepeatType == MoveRepeatType.DifferentTarget || (MoveDefinition.AlreadyDeadAction == MoveAlreadyDeadAction.Retarget && MoveDefinition.RepeatType == MoveRepeatType.SameTarget && !targets[0].IsAlive)) && (MoveDefinition.Target == MoveTarget.SingleAlly || MoveDefinition.Target == MoveTarget.SingleEnemy || MoveDefinition.Target == MoveTarget.SingleParticipant))
                 {
                     var targetableEnemies = GetTargetableEnemySet(attackingParticipant).ToList();
 
@@ -372,7 +413,12 @@ namespace CommonCore.TurnBasedBattleSystem
                         int lastTargetIndex = targetableEnemies.FindIndex(kvp => targets[0].Participant.Name == kvp.Key);
                         if (lastTargetIndex >= 0)
                             targetableEnemies.RemoveAt(lastTargetIndex);
-                    }
+
+                        if (targetableEnemies.Count == 0)
+                        {
+                            targetableEnemies = GetTargetableEnemySet(attackingParticipant).ToList();
+                        }
+                    }                    
 
                     var selected = targetableEnemies[UnityEngine.Random.Range(0, targetableEnemies.Count)];
                     targets[0] = CreateTargetData(selected.Value);
@@ -477,6 +523,58 @@ namespace CommonCore.TurnBasedBattleSystem
             context.UIController.RepaintOverlay(); //force overlay repaint because conditions have changed
 
             context.CompleteCallback(); //safe-ish
+        }
+
+    }
+
+    public class RegenerateAction : BattleAction
+    {
+        public override void Start(BattleContext context)
+        {
+            base.Start(context);
+
+            Debug.Log("RegenerateAction");
+
+            var activeParticipants = Context.SceneController.ParticipantData.Where(kvp => kvp.Value.Health > 0).ToList();
+            bool anyUpdated = false;
+            foreach (var participant in activeParticipants)
+            {
+                if(participant.Value.Stats.TryGetValue(TBBSStatType.HealthRegen, out float healthRegen) && healthRegen > 0)
+                {
+                    float healthToRegen = Mathf.Max(0, Mathf.Min(participant.Value.MaxHealth - participant.Value.Health, healthRegen));
+                    if(healthToRegen > 0)
+                    {
+                        Debug.Log($"{participant.Key} regenerated {healthToRegen:F0} health");
+                        participant.Value.Health += healthToRegen;
+                        anyUpdated = true;
+                    }
+                }
+
+                if (participant.Value.Stats.TryGetValue(TBBSStatType.MagicRegen, out float magicRegen) && magicRegen > 0)
+                {
+                    float magicToRegen = Mathf.Max(0, Mathf.Min(participant.Value.MaxMagic - participant.Value.Magic, magicRegen));
+                    if (magicToRegen > 0)
+                    {
+                        Debug.Log($"{participant.Key} regenerated {magicToRegen:F0} magic");
+                        participant.Value.Magic += magicToRegen;
+                        anyUpdated = true;
+                    }
+                }
+            }
+
+            if(anyUpdated)
+            {
+                context.UIController.ShowOverlay();
+                context.UIController.RepaintOverlayAnimated(() =>
+                {
+                    context.CompleteCallback();
+                });
+            }
+            else
+            {
+                context.CompleteCallback();
+            }
+                      
         }
 
     }

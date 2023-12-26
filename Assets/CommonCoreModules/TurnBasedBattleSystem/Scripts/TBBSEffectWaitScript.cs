@@ -4,12 +4,14 @@ using UnityEngine;
 
 namespace CommonCore.TurnBasedBattleSystem
 {
-    public abstract class TBBSEffectWaitScriptBase : MonoBehaviour
+    public abstract class TBBSEffectScriptBase : MonoBehaviour
     {
         public abstract bool IsDone { get; }
+        public BattlerController CurrentBattler { get; set; }
+        public BattlerController TargetBattler { get; set; }
     }
 
-    public class TBBSEffectWaitScript : TBBSEffectWaitScriptBase
+    public class TBBSEffectWaitScript : TBBSEffectScriptBase
     {
         public float TimeToWait = 1f;
 

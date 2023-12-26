@@ -51,6 +51,7 @@ namespace CommonCore.TurnBasedBattleSystem
     public class BattlerAnimationArgs
     {
         public Vector3 TargetPosition { get; set; }
+        public BattlerController TargetBattler { get; set; }
 
         //public string Animation { get; set; }
         public float AnimationTimescale { get; set; } = 1f;
@@ -59,9 +60,11 @@ namespace CommonCore.TurnBasedBattleSystem
         public string LateEffect { get; set; }
 
         public string SoundEffect { get; set; }
+        public bool PlaySoundPositional { get; set; }
 
         public bool AnimateMotion { get; set; }
         public bool PlayEffectAtMidpoint { get; set; }
+        public bool DoNotReturnToIdle { get; set; }
 
         public Action MidpointCallback { get; set; }
 
@@ -78,6 +81,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public IDictionary<string, BattleParticipant> Participants { get; set; } = new Dictionary<string, BattleParticipant>();
 
+        public bool ResetCharacterStatusOnStart { get; set; }
         public bool CommitCharacterModelsAtEnd { get; set; }
         public bool GameOverIfBattleLost { get; set; }
 
@@ -104,6 +108,9 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public string DisplayName { get; set; }
         public bool ShowOverlay { get; set; } = true;
+
+        public string DeathEffect { get; set; }
+        public string DeathSound { get; set; }
 
         public enum CharacterModelSourceType
         {
@@ -262,7 +269,8 @@ namespace CommonCore.TurnBasedBattleSystem
         RepeatOnDeadTarget,
         ApplyGroupAttackOnDeadTargets,
         ApplyGroupAttackOnNotarget,
-        SkipPainAnimation
+        SkipPainAnimation,
+        UseTargetHitPuff
     }
 
     public enum MoveDamageCalculation

@@ -63,8 +63,18 @@ namespace CommonCore.TurnBasedBattleSystem
         SpecialAttack = 13,
         SpecialDefence = 14,
         Agility = 15,
-        Luck = 16
+        Luck = 16,
+        HealthRegen = 21,
+        MagicRegen = 22
     }
+
+    /*
+    [PseudoExtend(typeof(SkillType))]
+    public enum TBBSSkillType
+    {
+        
+    }
+    */
 
     public abstract class TBBSConditionBase : Condition
     {

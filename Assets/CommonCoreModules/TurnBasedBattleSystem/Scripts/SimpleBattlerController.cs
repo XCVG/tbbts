@@ -15,6 +15,7 @@ namespace CommonCore.TurnBasedBattleSystem
         public BattlerAnimationDefinition[] AnimationDefinitions;
         public float IdleAnimationTimescale = 1;
         public string IdleAnimation;
+        public string HitPuffEffect;
 
         [Header("References")]
         public Transform OverlayPoint;
@@ -70,6 +71,11 @@ namespace CommonCore.TurnBasedBattleSystem
             return Vector3.zero;
         }
 
+        public override string GetHitPuffEffect()
+        {
+            return HitPuffEffect;
+        }
+
 
         private IEnumerator CoDoAnimation(string animation, Action completeCallback, BattlerAnimationArgs args)
         {
@@ -99,12 +105,12 @@ namespace CommonCore.TurnBasedBattleSystem
             // play additional sound effect if applicable
             if(!string.IsNullOrEmpty(args.SoundEffect))
             {
-                AudioPlayer.PlaySound(args.SoundEffect, SoundType.Sound, false);
+                AudioPlayer.PlaySound(args.SoundEffect, SoundType.Sound, false, false, false, args.PlaySoundPositional, 1f, transform.position);
             }
             // spawn effect if applicable
             if (!string.IsNullOrEmpty(args.InitialEffect))
             {
-                WorldUtils.SpawnEffect(args.InitialEffect, GetTargetPoint(), Quaternion.identity, null, true);
+                SpawnEffect(args.InitialEffect, args.TargetBattler);
             }
 
             Animator.speed = actualTimescale;
@@ -132,7 +138,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 args.MidpointCallback?.Invoke();
                 if (!string.IsNullOrEmpty(args.LateEffect) && args.PlayEffectAtMidpoint)
                 {
-                    WorldUtils.SpawnEffect(args.LateEffect, GetTargetPoint(), Quaternion.identity, null, true);
+                    SpawnEffect(args.LateEffect, args.TargetBattler);
                 }
 
                 yield return null;
@@ -154,12 +160,15 @@ namespace CommonCore.TurnBasedBattleSystem
 
             yield return null;
 
-            Animator.speed = IdleAnimationTimescale;
-            Animator.Play(IdleAnimation);
+            if(!args.DoNotReturnToIdle)
+            {
+                Animator.speed = IdleAnimationTimescale;
+                Animator.Play(IdleAnimation);
+            }            
 
             if (!string.IsNullOrEmpty(args.LateEffect) && !args.PlayEffectAtMidpoint)
             {
-                WorldUtils.SpawnEffect(args.LateEffect, GetTargetPoint(), Quaternion.identity, null, true);
+                SpawnEffect(args.LateEffect, args.TargetBattler);
             }
 
             yield return new WaitForSecondsEx(animationDefinition.HoldTime * (1f / args.AnimationTimescale), false, LockPause.PauseLockType.AllowCutscene);
@@ -167,6 +176,14 @@ namespace CommonCore.TurnBasedBattleSystem
             yield return null;
 
             completeCallback();
+        }
+
+        private void SpawnEffect(string effect, BattlerController targetBattler)
+        {
+            var effectGO = WorldUtils.SpawnEffect(effect, GetTargetPoint(), Quaternion.identity, null, true);
+            var effectScript = effectGO.GetComponent<TBBSEffectScriptBase>();
+            effectScript.CurrentBattler = this;
+            effectScript.TargetBattler = targetBattler;
         }
                
 

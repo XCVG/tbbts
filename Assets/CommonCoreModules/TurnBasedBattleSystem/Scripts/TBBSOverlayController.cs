@@ -13,6 +13,7 @@ namespace CommonCore.TurnBasedBattleSystem
         public Slider HealthSlider;
         public Slider EnergySlider;
         public Transform ConditionsArea;
+        public GameObject ConditionTemplate;
 
         [Header("Options")]
         public float YOffset;

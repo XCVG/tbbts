@@ -56,6 +56,11 @@ namespace CommonCore.TurnBasedBattleSystem
 
             yield return new WaitForSeconds(1f);
 
+            if(participant.BattleParticipant.HideOverlayOnDeath)
+            {
+                participant.ShowOverlay = false;
+            }
+
             Context.UIController.ClearMessage();
         }
 
@@ -63,7 +68,39 @@ namespace CommonCore.TurnBasedBattleSystem
 
     public class FleeAction : BattleAction
     {
+        public override void Start(BattleContext context)
+        {
+            base.Start(context);
 
+            context.SceneController.StartCoroutine(CoDoFlee());            
+        }
+
+        private IEnumerator CoDoFlee()
+        {
+
+            Context.UIController.HideOverlay();
+
+            yield return null;
+
+            if (Mathf.Approximately(Context.SceneController.FleeChance, 1) || UnityEngine.Random.Range(0f, 1f) <= Context.SceneController.FleeChance)
+            {
+                Context.UIController.ShowMessage("You flee the battle");
+                yield return new WaitForSeconds(3f);
+
+                Context.SceneController.SetDataAndEndBattle(new BattleEndData() { PlayerFled = true });
+                
+            }
+            else
+            {
+                Context.UIController.ShowMessage("You attempt to flee the battle\nHowever, it failed");
+                yield return new WaitForSeconds(3f);
+            }          
+
+            Context.UIController.ClearMessage();
+            Context.UIController.ShowOverlay();
+            Context.UIController.RepaintOverlay();
+            Context.CompleteCallback();
+        }
     }
 
     public abstract class BaseAttackAction : BattleAction
@@ -109,6 +146,8 @@ namespace CommonCore.TurnBasedBattleSystem
             while (!animDone)
                 yield return null;
 
+            AddConditionToParticipant();
+
             yield return null;
             Context.UIController.ClearMessage();
             Context.UIController.ShowOverlay();
@@ -149,6 +188,30 @@ namespace CommonCore.TurnBasedBattleSystem
 
             var attackingParticipant = Context.SceneController.ParticipantData[AttackingParticipant];
             var attackingBattler = Context.SceneController.Battlers[AttackingParticipant];
+
+            //skip attacking and display message if stunned
+            if(attackingParticipant.Conditions.Any( c => c is TBBSConditionBase tbbsCondition && tbbsCondition.BlockActions))
+            {
+                Context.UIController.HideOverlay();
+                bool messageSkipped = false;
+                Context.UIController.ShowMessage(attackingParticipant.DisplayName + " is unable to move!", () =>
+                {
+                    messageSkipped = true;
+                });
+
+                yield return null;
+                for (float elapsed = 0; elapsed < 3f && !messageSkipped; elapsed += Time.deltaTime)
+                {
+                    yield return null;
+                }
+
+                Context.UIController.ClearMessage();
+                Context.UIController.ShowOverlay();
+                Context.UIController.RepaintOverlay();
+                Context.CompleteCallback();
+
+                yield break;
+            }
 
             //get defending participant, if applicable
             IList<TargetData> targets = new List<TargetData>();
@@ -242,6 +305,27 @@ namespace CommonCore.TurnBasedBattleSystem
                     target.PendingDamage = TBBSUtils.CalculateDamage(MoveDefinition, attackingParticipant, target.Participant);
                     if (MoveDefinition.HasFlag(MoveFlag.IsHealingMove))
                         target.PendingDamage = Mathf.Abs(target.PendingDamage) * -1;
+
+                    //TODO calculate conditions
+                    if(!string.IsNullOrEmpty(MoveDefinition.ApplyCondition) && MoveDefinition.ApplyConditionChance > 0)
+                    {
+                        if (Mathf.Approximately(MoveDefinition.ApplyConditionChance, 1f) || UnityEngine.Random.Range(0f, 1f) <= MoveDefinition.ApplyConditionChance)
+                        {
+                            var condition = TBBSUtils.CreateConditionInstance(MoveDefinition.ApplyCondition);
+                            if(condition != null)
+                            {
+                                var conditionType = condition.GetType();
+                                if(MoveDefinition.HasFlag(MoveFlag.ApplyConditionIfAlreadyApplied) || !target.Participant.Conditions.Any(c => c.GetType() == conditionType))
+                                {
+                                    target.PendingCondition = condition;
+                                }
+                            }
+                            else
+                            {
+                                Debug.LogErrorFormat("Unable to create instance of condition {0}", MoveDefinition.ApplyCondition);
+                            }
+                        }
+                    }
                 }
 
                 //WIP signal battler to play animation (calculate target points based on move definition options here)
@@ -268,6 +352,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 }
                 bool animDone = false, mpAnimDone = false;
                 bool continueFromMidpoint = MoveDefinition.HasFlag(MoveFlag.ContinueAnimationFromMidpoint);
+                bool playInitialEffectAtMidpoint = MoveDefinition.HasFlag(MoveFlag.PlayInitialEffectAtMidpoint);                
                 attackingBattler.PlayAnimation(MoveDefinition.Animation, () => { animDone = true; }, new BattlerAnimationArgs()
                 {
                     AnimationTimescale = MoveDefinition.AnimationTimescale,
@@ -275,6 +360,7 @@ namespace CommonCore.TurnBasedBattleSystem
                     LateEffect = playEffectAtMidpoint ? MoveDefinition.HitEffect : "",
                     SoundEffect = MoveDefinition.SoundEffect,
                     PlayEffectAtMidpoint = playEffectAtMidpoint,
+                    PlayInitialEffectAtMidpoint = playInitialEffectAtMidpoint,
                     AnimateMotion = animateMotion,
                     TargetPosition = animTargetPos,
                     TargetBattler = targets.Count > 0 ? targets[0].Battler : null,
@@ -286,13 +372,58 @@ namespace CommonCore.TurnBasedBattleSystem
                 while (!(animDone || (mpAnimDone && continueFromMidpoint))) //wait for battler animation to finish
                     yield return null;
 
+                
+                //handle projectiles (a bit hacky)
+                if (!string.IsNullOrEmpty(MoveDefinition.Projectile))
+                {
+                    List<TBBSEffectScriptBase> projectilesToWaitOn = new List<TBBSEffectScriptBase>();
+                    Vector3 spawnPosition = attackingBattler.transform.position - Vector3.Scale(attackingBattler.GetAttackOffsetVector(), new Vector3(1, 1, 1));
+
+                    foreach (var target in targets)
+                    {
+                        if (!target.IsAlive && !MoveDefinition.HasFlag(MoveFlag.ApplyGroupAttackOnDeadTargets))
+                            continue;
+
+                        var effectGO = WorldUtils.SpawnEffect(MoveDefinition.Projectile, spawnPosition, Quaternion.identity, null, true);
+                        if (effectGO != null)
+                        {
+                            var waitScript = effectGO.GetComponent<TBBSEffectScriptBase>();
+                            if (waitScript != null)
+                            {
+                                waitScript.Init(attackingBattler, target.Battler);
+                                projectilesToWaitOn.Add(waitScript);
+                            }
+                        }
+                    }
+
+                    bool allProjectilesDone;
+                    do
+                    {
+                        allProjectilesDone = false;
+                        int finishedEffects = 0;
+                        foreach (var effect in projectilesToWaitOn)
+                        {
+                            if (effect == null || effect.IsDone)
+                                finishedEffects++;
+                        }
+
+                        allProjectilesDone = finishedEffects == projectilesToWaitOn.Count;
+
+                        yield return null;
+                    } while (!allProjectilesDone);
+                }
+
                 StringBuilder endMessage = new StringBuilder();
                 int startedAnimationCount = 0, completedAnimationCount = 0;
                 List<TBBSEffectScriptBase> effectsToWaitOn = new List<TBBSEffectScriptBase>();
-                foreach(var target in targets)
+                //handle main animations and effects
+                foreach (var target in targets)
                 {
                     if (!target.IsAlive && !MoveDefinition.HasFlag(MoveFlag.ApplyGroupAttackOnDeadTargets))
                         continue;
+
+                    //end message (x took y damage) ?
+                    endMessage.AppendFormat("{0} took {1:F0} damage\n", target.Participant.DisplayName, target.PendingDamage);
 
                     float previousHealth = target.Participant.Health;
 
@@ -303,6 +434,28 @@ namespace CommonCore.TurnBasedBattleSystem
                     {
                         target.KilledDuringAction = true;
                         target.PendingDeathAnimation = true;
+                    }
+
+                    //handle drain if applicable
+                    if(MoveDefinition.HasFlag(MoveFlag.DrainHealth) && MoveDefinition.DrainEfficiency > 0)
+                    {
+                        //if this looks like it isn't working, have you checked that the attacker needs the health and the defender has the health? it may be working as intended
+                        float maxPossibleHeal = attackingParticipant.MaxHealth - attackingParticipant.Health;
+                        float maxPossibleDrain = Mathf.Min(previousHealth, target.PendingDamage) * MoveDefinition.DrainEfficiency;
+                        float healthToTransfer = Mathf.Max(0, Mathf.Min(maxPossibleHeal, maxPossibleDrain));
+                        if(healthToTransfer > 0)
+                        {
+                            attackingParticipant.Health += healthToTransfer;
+                            endMessage.AppendFormat("{0} recovered {1:F0} health\n", attackingParticipant.DisplayName, healthToTransfer);
+                        }                        
+                    }
+
+                    //handle condition apply if applicable
+                    if(target.PendingCondition != null)
+                    {
+                        target.Participant.Conditions.Add(target.PendingCondition);
+                        if (!string.IsNullOrEmpty(target.PendingCondition.Verb))
+                            endMessage.AppendFormat("{0} is now {1}\n", target.Participant.DisplayName, target.PendingCondition.Verb);
                     }
 
                     //hit/react animation should probably move here and be handled by a call to defending battler(s)
@@ -334,15 +487,11 @@ namespace CommonCore.TurnBasedBattleSystem
                             var waitScript = effectGO.GetComponent<TBBSEffectScriptBase>();
                             if (waitScript != null)
                             {
-                                waitScript.TargetBattler = target.Battler;
-                                waitScript.CurrentBattler = target.Battler;
+                                waitScript.Init(MoveDefinition.HasFlag(MoveFlag.PassAttackerToHitEffect) ? attackingBattler : target.Battler, target.Battler);
                                 effectsToWaitOn.Add(waitScript);
                             }                                
                         }                        
-                    }
-
-                    //end message (x took y damage) ?
-                    endMessage.AppendFormat("{0} took {1:F0} damage\n", target.Participant.DisplayName, target.PendingDamage);
+                    }                    
 
                     target.PendingDamage = 0;
                 }
@@ -361,7 +510,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 {
                     allEffectsDone = false;
                     int finishedEffects = 0;
-                    foreach(var effect in effectsToWaitOn)
+                    foreach (var effect in effectsToWaitOn)
                     {
                         if (effect == null || effect.IsDone)
                             finishedEffects++;
@@ -373,7 +522,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 } while (!allEffectsDone);
 
                 //wait for attack animation to fully complete, if necessary
-                if(!animDone)
+                if (!animDone)
                 {
                     while (!animDone)
                         yield return null;
@@ -486,7 +635,8 @@ namespace CommonCore.TurnBasedBattleSystem
             public BattlerController Battler { get; set; }
             public bool IsAlive => Participant.Health > 0;
 
-            public float PendingDamage { get; set; }            
+            public float PendingDamage { get; set; }
+            public TBBSConditionBase PendingCondition { get; set; }
             public bool PendingDeathAnimation { get; set; }
             public bool KilledDuringAction { get; set; }
             
@@ -501,6 +651,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
             Debug.Log("ConditionUpdateAction");
 
+            List<string> conditionUpdateMessages = new List<string>();
             var activeParticipants = Context.SceneController.ParticipantData.Where(kvp => kvp.Value.Health > 0).ToList();
             foreach(var participant in activeParticipants)
             {
@@ -511,18 +662,57 @@ namespace CommonCore.TurnBasedBattleSystem
                     if(condition != null)
                     {
                         condition.ElapsedTurns++;
-                        if(condition.RemoveAfterNumTurns == -1 || (condition.RemoveAfterNumTurns > 0 && condition.ElapsedTurns > condition.RemoveAfterNumTurns))
+                        if (condition.RemoveAfterNumTurns == -1 || (condition.RemoveAfterNumTurns > 0 && condition.ElapsedTurns > condition.RemoveAfterNumTurns))
                         {
                             conditions.RemoveAt(i);
-                            //TODO would be nice to show messages for at least some conditions wearing off but it's not critical
-                        }
+                            if(condition.ShowTextOnRemove && !string.IsNullOrEmpty(condition.Verb))
+                            {
+                                conditionUpdateMessages.Add($"{participant.Value.DisplayName} is no longer {condition.Verb}!");
+                            }
+                        }                        
                     }                    
                 }
             }
 
-            context.UIController.RepaintOverlay(); //force overlay repaint because conditions have changed
+            if(conditionUpdateMessages.Count > 0)
+            {
+                context.SceneController.StartCoroutine(CoShowConditionUpdates(conditionUpdateMessages));
+            }
+            else
+            {
+                context.UIController.RepaintOverlay(); //force overlay repaint because conditions have changed
 
-            context.CompleteCallback(); //safe-ish
+                context.CompleteCallback(); //safe-ish
+            }            
+        }
+
+        private IEnumerator CoShowConditionUpdates(IEnumerable<string> conditionUpdateMessages)
+        {
+            Context.UIController.HideOverlay();
+
+            yield return null;
+
+            foreach(var conditionUpdateMessage in conditionUpdateMessages)
+            {
+                bool messageSkipped = false;
+                Context.UIController.ShowMessage(conditionUpdateMessage, () =>
+                {
+                    messageSkipped = true;
+                });
+
+                yield return null;
+                for (float elapsed = 0; elapsed < 3f && !messageSkipped; elapsed += Time.deltaTime)
+                {
+                    yield return null;
+                }
+
+                yield return null;
+            }
+
+            Context.UIController.ClearMessage();
+            Context.UIController.ShowOverlay();
+            Context.UIController.RepaintOverlay();
+            Context.CompleteCallback();
         }
 
     }

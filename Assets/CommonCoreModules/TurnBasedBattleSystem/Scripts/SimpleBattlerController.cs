@@ -108,21 +108,22 @@ namespace CommonCore.TurnBasedBattleSystem
                 AudioPlayer.PlaySound(args.SoundEffect, SoundType.Sound, false, false, false, args.PlaySoundPositional, 1f, transform.position);
             }
             // spawn effect if applicable
-            if (!string.IsNullOrEmpty(args.InitialEffect))
+            if (!string.IsNullOrEmpty(args.InitialEffect) && !args.PlayInitialEffectAtMidpoint)
             {
+                Debug.Log("play at initial");
                 SpawnEffect(args.InitialEffect, args.TargetBattler);
             }
 
             Animator.speed = actualTimescale;
+            Animator.applyRootMotion = animationDefinition.ForceRootMotion;
             Animator.Play(animationDefinition.AnimationName);
 
             //do motion if applicable         
             //in this case maybe-spawn effect at midpoint and execute midpoint callback
-            if(args.AnimateMotion)
+            float halfDuration = actualDuration / 2f;
+            if (args.AnimateMotion)
             {
-                Vector3 originalPosition = transform.position;
-
-                float halfDuration = actualDuration / 2f;
+                Vector3 originalPosition = transform.position;                
 
                 yield return null;
                 for(float elapsed = 0; elapsed < halfDuration; elapsed += Time.deltaTime)
@@ -140,6 +141,10 @@ namespace CommonCore.TurnBasedBattleSystem
                 {
                     SpawnEffect(args.LateEffect, args.TargetBattler);
                 }
+                if (!string.IsNullOrEmpty(args.InitialEffect) && args.PlayInitialEffectAtMidpoint)
+                {
+                    SpawnEffect(args.InitialEffect, args.TargetBattler);
+                }
 
                 yield return null;
 
@@ -155,7 +160,17 @@ namespace CommonCore.TurnBasedBattleSystem
             }
             else
             {
-                yield return new WaitForSecondsEx(actualDuration, false, LockPause.PauseLockType.AllowCutscene);
+                yield return new WaitForSecondsEx(halfDuration, false, LockPause.PauseLockType.AllowCutscene);
+                args.MidpointCallback?.Invoke();
+                if (!string.IsNullOrEmpty(args.LateEffect) && args.PlayEffectAtMidpoint)
+                {
+                    SpawnEffect(args.LateEffect, args.TargetBattler);
+                }
+                if (!string.IsNullOrEmpty(args.InitialEffect) && args.PlayInitialEffectAtMidpoint)
+                {
+                    SpawnEffect(args.InitialEffect, args.TargetBattler);
+                }
+                yield return new WaitForSecondsEx(halfDuration, false, LockPause.PauseLockType.AllowCutscene);
             }            
 
             yield return null;
@@ -182,8 +197,7 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             var effectGO = WorldUtils.SpawnEffect(effect, GetTargetPoint(), Quaternion.identity, null, true);
             var effectScript = effectGO.GetComponent<TBBSEffectScriptBase>();
-            effectScript.CurrentBattler = this;
-            effectScript.TargetBattler = targetBattler;
+            effectScript.Init(this, targetBattler);
         }
                
 
@@ -197,6 +211,8 @@ namespace CommonCore.TurnBasedBattleSystem
         public string AnimationName;
         public float Duration;
         public float HoldTime;
+        [Tooltip("experimental, probably only safe for death animations")]
+        public bool ForceRootMotion;
     }
 
 }

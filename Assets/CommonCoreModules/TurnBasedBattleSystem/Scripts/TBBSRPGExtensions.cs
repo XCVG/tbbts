@@ -88,11 +88,33 @@ namespace CommonCore.TurnBasedBattleSystem
         //if set, remove after n turns (-1 for "end of this turn")
         public virtual int RemoveAfterNumTurns { get; }
 
+        //presentation
+        public virtual string Verb { get; }
+        public virtual string Icon { get; }
+        public virtual bool ShowTextOnRemove { get; }
+
         public int ElapsedTurns { get; set; }
     }
 
     public class TBBSGuardCondition : TBBSConditionBase
     {
         public override int RemoveAfterNumTurns => -1;
+    }
+
+    public class TBBSTestCondition : TBBSConditionBase
+    {
+        public override int RemoveAfterNumTurns => 1;
+        public override string Icon => "move_attack2";
+        public override string Verb => "TestConditionEd";
+    }
+
+    public class TBBSStunnedCondition : TBBSConditionBase
+    {
+        public override bool BlockActions => true;
+
+        public override int RemoveAfterNumTurns => 1;
+        public override string Icon => "condition_stunned";
+        public override string Verb => "stunned";
+        public override bool ShowTextOnRemove => true;
     }
 }

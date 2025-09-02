@@ -64,10 +64,11 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public bool AnimateMotion { get; set; }
         public bool PlayEffectAtMidpoint { get; set; }
+        public bool PlayInitialEffectAtMidpoint { get; set; }
         public bool DoNotReturnToIdle { get; set; }
 
         public Action MidpointCallback { get; set; }
-
+        
     }
 
     /// <summary>
@@ -87,11 +88,19 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public IList<MicroscriptNode> WinMicroscript { get; set; }
         public IList<MicroscriptNode> LoseMicroscript { get; set; }
+        public IList<MicroscriptNode> FleeMicroscript { get; set; }
 
         //will need to be set explicitly by caller for "return to last scene"
         public string NextScene { get; set; }
 
-        //TODO specify escape allowance here
+        public bool AllowFlee { get; set; }
+        public float FleeChance { get; set; } = 1f;
+
+        //per-battle scripts
+        public string OnActionPhaseEndScript { get; set; }
+        public string OnPreOutroScript { get; set; }
+        public string OnPreReorderScript { get; set; }
+        public string OnPostReorderScript { get; set; }
 
     }
 
@@ -111,6 +120,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public string DeathEffect { get; set; }
         public string DeathSound { get; set; }
+        public bool HideOverlayOnDeath { get; set; }
 
         public enum CharacterModelSourceType
         {
@@ -164,6 +174,8 @@ namespace CommonCore.TurnBasedBattleSystem
         public IReadOnlyDictionary<int, float> DamageResistance { get; set; }
 
         public List<Condition> Conditions { get; set; } = new List<Condition>();
+
+        public bool ShowOverlay { get; set; }
 
         public void LoadValuesFromCharacterModel()
         {
@@ -223,6 +235,7 @@ namespace CommonCore.TurnBasedBattleSystem
     public class BattleEndData
     {
         public bool PlayerWon { get; set; }
+        public bool PlayerFled { get; set; }
     }
 
     //scripting context objects
@@ -270,7 +283,11 @@ namespace CommonCore.TurnBasedBattleSystem
         ApplyGroupAttackOnDeadTargets,
         ApplyGroupAttackOnNotarget,
         SkipPainAnimation,
-        UseTargetHitPuff
+        UseTargetHitPuff,
+        DrainHealth,
+        ApplyConditionIfAlreadyApplied,
+        PlayInitialEffectAtMidpoint,
+        PassAttackerToHitEffect
     }
 
     public enum MoveDamageCalculation
@@ -278,6 +295,7 @@ namespace CommonCore.TurnBasedBattleSystem
         None,
         Normal, //max(1, 4 * power * atk - (guarding ? 4 : 2) * def)
         IgnoreDR,
+        IgnoreAllDefense,
         ExactPower
     }
 
@@ -330,6 +348,8 @@ namespace CommonCore.TurnBasedBattleSystem
         public float MagicUse { get; set; }
         [JsonProperty, JsonConverter(typeof(PxEnumConverter), typeof(DefaultDamageTypes))]
         public int DamageType { get; set; }
+        [JsonProperty]
+        public float DrainEfficiency { get; set; }
 
         [JsonProperty]
         public IList<MoveFlag> Flags { get; set; }
@@ -338,6 +358,11 @@ namespace CommonCore.TurnBasedBattleSystem
         public MoveDamageCalculation DamageCalculation { get; set; }
         [JsonProperty]
         public MoveAlreadyDeadAction AlreadyDeadAction { get; set; }
+
+        [JsonProperty]
+        public string ApplyCondition { get; set; }
+        [JsonProperty]
+        public float ApplyConditionChance { get; set; }
 
         //presentation data (stringly typed garbage)
         [JsonProperty]
@@ -348,6 +373,8 @@ namespace CommonCore.TurnBasedBattleSystem
         public MoveMotionHint MotionHint { get; set; }
         [JsonProperty]
         public string AttackEffect { get; set; }
+        [JsonProperty]
+        public string Projectile { get; set; }
         [JsonProperty]
         public string HitEffect { get; set; }
         [JsonProperty]

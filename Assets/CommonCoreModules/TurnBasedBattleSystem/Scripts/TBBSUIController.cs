@@ -8,7 +8,6 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using CommonCore.World;
-using static UnityEngine.GraphicsBuffer;
 
 namespace CommonCore.TurnBasedBattleSystem
 {
@@ -110,8 +109,8 @@ namespace CommonCore.TurnBasedBattleSystem
                 PresentActionSelect2();
             });
 
-            //TODO show/don't show flee action based on battle data
-
+            //flee button is enabled selectively
+            FlightButton.interactable = SceneController.FleeChance > 0;
             FlightButton.onClick.RemoveAllListeners();
             FlightButton.onClick.AddListener(() =>
             {
@@ -147,6 +146,7 @@ namespace CommonCore.TurnBasedBattleSystem
 
             void presentActionSelectForParticipant()
             {
+                ShowOverlay(); //bugfix
                 ActionSelect2Panel.SetActive(true);
                 var participant = playerControlledParticipants[participantIndex];
                 ParticipantNameText.text = participant.Value.DisplayName;
@@ -335,7 +335,7 @@ namespace CommonCore.TurnBasedBattleSystem
             foreach(Transform t in PickMoveContainer.transform)
             {
                 if (t.gameObject != PickMoveButtonTemplate)
-                    Destroy(t);
+                    Destroy(t.gameObject);
             }
 
             foreach(var moveKvp in moves)
@@ -468,13 +468,13 @@ namespace CommonCore.TurnBasedBattleSystem
         
         public void RepaintOverlay()
         {
-            RepaintOverlayInternal(false);
+            RepaintOverlayInternal(false, false);
         }
 
         //TODO repaint and animate variant
         public void RepaintOverlayAnimated(Action completeCallback)
         {
-            var animateBlocks = RepaintOverlayInternal(true);
+            var animateBlocks = RepaintOverlayInternal(true, false);
             
             StartCoroutine(CoAnimateOverlayBars(animateBlocks, completeCallback));  
         }
@@ -517,7 +517,7 @@ namespace CommonCore.TurnBasedBattleSystem
             completeCallback();
         }
 
-        private List<OverlayBarAnimateData> RepaintOverlayInternal(bool animate)
+        private List<OverlayBarAnimateData> RepaintOverlayInternal(bool animate, bool fixPosition)
         {
             List<OverlayBarAnimateData> animateBlocks = null;
             if (animate)
@@ -541,7 +541,7 @@ namespace CommonCore.TurnBasedBattleSystem
             foreach (var battlerKvp in battlers)
             {
                 var participant = SceneController.ParticipantData[battlerKvp.Key];
-                if (!participant.BattleParticipant.ShowOverlay)
+                if (!participant.ShowOverlay)
                     continue;
 
                 TBBSOverlayController overlayForBattler = null;
@@ -554,20 +554,25 @@ namespace CommonCore.TurnBasedBattleSystem
                     }
                 }
 
+                bool updatePositionForBattler = !fixPosition;
                 if (overlayForBattler == null)
                 {
                     var newOverlayGo = GameObject.Instantiate(OverlayTemplate, OverlayContainer.transform);
                     overlayForBattler = newOverlayGo.GetComponent<TBBSOverlayController>();
                     overlayForBattler.ParticipantName = battlerKvp.Key;
                     newOverlayGo.SetActive(true);
+                    updatePositionForBattler = true;
                 }
 
-                //overlayForBattler.CanvasGroup.alpha = participant.Health <= 0 ? 0 : 1f;                
-                Vector2 vpPos = camera.WorldToViewportPoint(battlerKvp.Value.GetOverlayPoint());
-                Vector2 screenPos = new Vector2(((vpPos.x * canvasTransform.sizeDelta.x) - (canvasTransform.sizeDelta.x * 0.5f)), ((vpPos.y * canvasTransform.sizeDelta.y) - (canvasTransform.sizeDelta.y * 0.5f)));
-                Debug.Log($"vpPos: {vpPos} | screenPos: {screenPos} | sizeDelta: {canvasTransform.sizeDelta}");
-                screenPos += new Vector2(0, overlayForBattler.YOffset);
-                ((RectTransform)overlayForBattler.transform).anchoredPosition = screenPos;
+                //overlayForBattler.CanvasGroup.alpha = participant.Health <= 0 ? 0 : 1f;
+                if(updatePositionForBattler)
+                {
+                    Vector2 vpPos = camera.WorldToViewportPoint(battlerKvp.Value.GetOverlayPoint());
+                    Vector2 screenPos = new Vector2(((vpPos.x * canvasTransform.sizeDelta.x) - (canvasTransform.sizeDelta.x * 0.5f)), ((vpPos.y * canvasTransform.sizeDelta.y) - (canvasTransform.sizeDelta.y * 0.5f)));
+                    Debug.Log($"vpPos: {vpPos} | screenPos: {screenPos} | sizeDelta: {canvasTransform.sizeDelta}");
+                    screenPos += new Vector2(0, overlayForBattler.YOffset);
+                    ((RectTransform)overlayForBattler.transform).anchoredPosition = screenPos;
+                }                
 
                 overlayForBattler.NameText.text = participant.DisplayName;
 
@@ -598,9 +603,33 @@ namespace CommonCore.TurnBasedBattleSystem
                     overlayForBattler.EnergySlider.value = newEValue; //was accidentally named "EnergySlider" but TBBS actually uses Magic
                     overlayForBattler.HealthSlider.value = newHValue;
                 }
-                
 
-                //TODO conditions, eventually
+
+                //conditions
+                var conditionTemplate = overlayForBattler.ConditionTemplate;
+                foreach(Transform t in overlayForBattler.ConditionsArea)
+                {
+                    if (t.gameObject != conditionTemplate)
+                        Destroy(t.gameObject);
+                }
+                foreach(var condition in participant.Conditions)
+                {
+                    if(condition is TBBSConditionBase tbbsCondition && !string.IsNullOrEmpty(tbbsCondition.Icon))
+                    {
+                        var newConditionObj = GameObject.Instantiate(conditionTemplate, overlayForBattler.ConditionsArea);
+                        var rawImage = newConditionObj.GetComponent<RawImage>();
+                        var iconTex = CoreUtils.LoadResource<Texture2D>("UI/Icons/" + tbbsCondition.Icon);
+                        if (iconTex != null)
+                        {
+                            rawImage.texture = iconTex;
+                            newConditionObj.SetActive(true);
+                        }
+                        else
+                        {
+                            newConditionObj.SetActive(false);
+                        }
+                    }
+                }
 
                 overlayControllers.Remove(overlayForBattler);
             }

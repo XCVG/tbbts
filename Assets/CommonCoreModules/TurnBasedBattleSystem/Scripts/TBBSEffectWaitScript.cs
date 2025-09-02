@@ -9,6 +9,12 @@ namespace CommonCore.TurnBasedBattleSystem
         public abstract bool IsDone { get; }
         public BattlerController CurrentBattler { get; set; }
         public BattlerController TargetBattler { get; set; }
+
+        public virtual void Init(BattlerController currentBattler, BattlerController targetBattler)
+        {
+            CurrentBattler = currentBattler;
+            TargetBattler = targetBattler;
+        }
     }
 
     public class TBBSEffectWaitScript : TBBSEffectScriptBase
@@ -17,9 +23,9 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public override bool IsDone => Elapsed >= TimeToWait;
 
-        private float Elapsed = 0;
+        protected float Elapsed = 0;
 
-        private void Update()
+        protected virtual void Update()
         {
             if(Elapsed < TimeToWait)
             {

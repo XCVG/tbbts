@@ -28,6 +28,10 @@ namespace CommonCore.TurnBasedBattleSystem
 
         public int TurnCount { get; private set; }
 
+        public float FleeChance { get; set; }
+
+        public Dictionary<string, object> BattleStore { get; private set; } = new Dictionary<string, object>();
+
         public BattleDefinition BattleDefinition { get; private set; }
         private BattleAction CurrentAction;
         private bool CurrentActionStarted = false;
@@ -68,7 +72,9 @@ namespace CommonCore.TurnBasedBattleSystem
                     BattleDefinition = TBBSUtils.GenerateDefaultBattleDefinition();
                 }                
             }
-            LoadBattlerData();
+            FleeChance = BattleDefinition.AllowFlee ? BattleDefinition.FleeChance : 0;
+
+            LoadParticipantData();
 
             SpawnStage();
             SpawnBattlers();
@@ -87,6 +93,22 @@ namespace CommonCore.TurnBasedBattleSystem
                 return;
 
             UpdatePhase();
+        }
+
+        private void TryCallScript(string script, params object[] args)
+        {
+            if (string.IsNullOrEmpty(script))
+                return;
+
+            try
+            {
+                ScriptingModule.Call(script, new ScriptExecutionContext() { Activator = this.gameObject, Caller = this }, args);
+            }
+            catch(Exception e)
+            {
+                Debug.LogException(e);
+            }
+            
         }
 
         private BattleContext CreateContext()
@@ -185,6 +207,7 @@ namespace CommonCore.TurnBasedBattleSystem
                         //end action phase and turn
 
                         ScriptingModule.CallNamedHooked("TBBSOnActionPhaseEnd", this);
+                        TryCallScript(BattleDefinition.OnActionPhaseEndScript, this);
 
                         CurrentActionStarted = false;
                         CurrentAction = null;
@@ -240,6 +263,7 @@ namespace CommonCore.TurnBasedBattleSystem
                 BattleEndData = BattleEndData
             };
             ScriptingModule.CallNamedHooked("TBBSOnPreOutro", this, ctx);
+            TryCallScript(BattleDefinition.OnPreOutroScript, this, ctx);
             bool didShowCustomMessage = false;
             if(!string.IsNullOrEmpty(ctx.MessageOverride))
             {
@@ -256,6 +280,18 @@ namespace CommonCore.TurnBasedBattleSystem
                     if (BattleDefinition.WinMicroscript != null && BattleDefinition.WinMicroscript.Count > 0)
                     {
                         foreach (var ms in BattleDefinition.WinMicroscript)
+                        {
+                            ms.Execute();
+                        }
+                    }
+                }
+                else if (BattleEndData.PlayerFled)
+                {
+                    if (!didShowCustomMessage)
+                        yield return UIController.ShowMessageAndWait("You have fled the battle!");
+                    if (BattleDefinition.FleeMicroscript != null && BattleDefinition.FleeMicroscript.Count > 0)
+                    {
+                        foreach (var ms in BattleDefinition.FleeMicroscript)
                         {
                             ms.Execute();
                         }
@@ -302,46 +338,53 @@ namespace CommonCore.TurnBasedBattleSystem
         
         //setup stuff below
 
-        private void LoadBattlerData()
+        private void LoadParticipantData()
         {
             foreach(var participant in BattleDefinition.Participants)
             {
                 Debug.Log("Adding battle participant: " + participant.Key);
                 //get characterModel and load stats
-                CharacterModel characterModel;
-                switch (participant.Value.CharacterModelSource)
-                {
-                    case BattleParticipant.CharacterModelSourceType.InitializeNew:
-                        characterModel = TBBSUtils.LoadCharacterModel(participant.Value.CharacterModelName);
-                        break;
-                    case BattleParticipant.CharacterModelSourceType.FromParty:
-                        characterModel = GameState.Instance.Party[participant.Value.CharacterModelName];
-                        break;
-                    case BattleParticipant.CharacterModelSourceType.FromPlayer:
-                        characterModel = GameState.Instance.PlayerRpgState;
-                        break;
-                    default:
-                        characterModel = new CharacterModel(); //probably not safe
-                        break;
-                }
-                if(BattleDefinition.ResetCharacterStatusOnStart)
-                {
-                    characterModel.EnergyFraction = 1;
-                    characterModel.HealthFraction = 1;
-                    characterModel.MagicFraction = 1;
-                    characterModel.ShieldsFraction = 1;
-                }
-                var bd = new ParticipantData()
-                {
-                    CharacterModel = characterModel,
-                    BattleParticipant = participant.Value,
-                    DisplayName = participant.Value.DisplayName ?? characterModel.DisplayName,
-                    Name = participant.Key
-                };
-                bd.LoadValuesFromCharacterModel();
+                ParticipantData bd = LoadSingleParticipantData(participant.Key, participant.Value);
                 ParticipantData.Add(participant.Key, bd);
                 Debug.Log("Added battle participant: " + participant.Key);
             }
+        }
+
+        private ParticipantData LoadSingleParticipantData(string participantName, BattleParticipant battleParticipant)
+        {
+            CharacterModel characterModel;
+            switch (battleParticipant.CharacterModelSource)
+            {
+                case BattleParticipant.CharacterModelSourceType.InitializeNew:
+                    characterModel = TBBSUtils.LoadCharacterModel(battleParticipant.CharacterModelName);
+                    break;
+                case BattleParticipant.CharacterModelSourceType.FromParty:
+                    characterModel = GameState.Instance.Party[battleParticipant.CharacterModelName];
+                    break;
+                case BattleParticipant.CharacterModelSourceType.FromPlayer:
+                    characterModel = GameState.Instance.PlayerRpgState;
+                    break;
+                default:
+                    characterModel = new CharacterModel(); //probably not safe
+                    break;
+            }
+            if (BattleDefinition.ResetCharacterStatusOnStart)
+            {
+                characterModel.EnergyFraction = 1;
+                characterModel.HealthFraction = 1;
+                characterModel.MagicFraction = 1;
+                characterModel.ShieldsFraction = 1;
+            }
+            var bd = new ParticipantData()
+            {
+                CharacterModel = characterModel,
+                BattleParticipant = battleParticipant,
+                DisplayName = battleParticipant.DisplayName ?? characterModel.DisplayName,
+                Name = participantName,
+                ShowOverlay = battleParticipant.ShowOverlay
+            };
+            bd.LoadValuesFromCharacterModel();
+            return bd;
         }
 
         //TODO error handling wow
@@ -369,14 +412,20 @@ namespace CommonCore.TurnBasedBattleSystem
         {
             foreach(var bd in ParticipantData)
             {
-                var battlerPrefab = CoreUtils.LoadResource<GameObject>("TurnBasedBattles/Battlers/" + bd.Value.BattleParticipant.Battler);
-                var battler = GameObject.Instantiate(battlerPrefab, bd.Value.BattleParticipant.BattlerPosition, Quaternion.Euler(bd.Value.BattleParticipant.BattlerRotation), CoreUtils.GetWorldRoot());
-                battler.name = bd.Key;
-                var bc = battler.GetComponent<BattlerController>();
-                bc.Init(this);
-                Battlers.Add(bd.Key, bc);
-                Debug.Log($"Spawned battler {bd.Key} (prefab: {bd.Value.BattleParticipant.Battler})");
+                SpawnSingleBattler(bd.Key, bd.Value);
             }
+        }
+
+        private void SpawnSingleBattler(string battlerName, ParticipantData participantData)
+        {
+            Debug.Log($"Spawning battler {battlerName} (prefab: {participantData.BattleParticipant.Battler})");
+            var battlerPrefab = CoreUtils.LoadResource<GameObject>("TurnBasedBattles/Battlers/" + participantData.BattleParticipant.Battler);
+            var battler = GameObject.Instantiate(battlerPrefab, participantData.BattleParticipant.BattlerPosition, Quaternion.Euler(participantData.BattleParticipant.BattlerRotation), CoreUtils.GetWorldRoot());
+            battler.name = battlerName;
+            var bc = battler.GetComponent<BattlerController>();
+            bc.Init(this);
+            Battlers.Add(battlerName, bc);
+            Debug.Log($"Spawned battler {battlerName} (prefab: {participantData.BattleParticipant.Battler})");
         }
 
         //decision phase handlers
@@ -572,6 +621,7 @@ namespace CommonCore.TurnBasedBattleSystem
             Debug.Log("DoDecisionPhaseReorder");
 
             ScriptingModule.CallNamedHooked("TBBSOnPreReorder", this, ActionQueue);
+            TryCallScript(BattleDefinition.OnPreReorderScript, this, ActionQueue);
 
             //reordered flee to the beginning (unless isReorderable is false)
             int fleeActionIdx = ActionQueue.FindIndex(a => a is  FleeAction);
@@ -658,6 +708,7 @@ namespace CommonCore.TurnBasedBattleSystem
             }
 
             ScriptingModule.CallNamedHooked("TBBSOnPostReorder", this, ActionQueue);
+            TryCallScript(BattleDefinition.OnPostReorderScript, this, ActionQueue);
 
         }
 
@@ -686,6 +737,49 @@ namespace CommonCore.TurnBasedBattleSystem
                     ActionQueue.RemoveAt(i);
                 }
             }
+        }
+
+        public void AddParticipant(string participantName, BattleParticipant battleParticipant)
+        {
+            //TODO more checks and error handling
+
+            Debug.Log("Adding battle participant: " + participantName);
+            //get characterModel and load stats
+            ParticipantData bd = LoadSingleParticipantData(participantName, battleParticipant);
+            ParticipantData.Add(participantName, bd);
+
+            //WIP? need to spawn battler also
+            SpawnSingleBattler(participantName, bd);
+
+            Debug.Log("Added battle participant: " + participantName);
+
+
+            //TODO? should there be a version that takes a ParticipantData directly?
+
+            //spawn effect and announce went in wrapper code
+
+        }
+
+        public void RemoveParticipant(string participantName)
+        {
+            if(!ParticipantData.ContainsKey(participantName))
+            {
+                throw new KeyNotFoundException();
+            }
+
+            Debug.LogFormat("Removing participant {0} from battle", participantName);
+
+            RemovePendingActionsForParticipant(participantName);
+
+            if(Battlers.ContainsKey(participantName))
+            {
+                var battler = Battlers[participantName];
+                Destroy(battler.gameObject);
+                Battlers.Remove(participantName);
+            }
+
+            ParticipantData.Remove(participantName);
+
         }
 
     }    
